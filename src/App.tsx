@@ -1,0 +1,98 @@
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { useAuth } from './contexts/AuthContext';
+import LoginPage from './components/auth/LoginPage';
+import PinSetup from './components/pin/PinSetup';
+import Layout from './components/layout/Layout';
+import ExecutiveDashboard from './components/dashboard/ExecutiveDashboard';
+import DateFilterDashboard from './components/dashboard/DateFilterDashboard';
+import DailyLedger from './components/ledger/DailyLedger';
+import UserManagement from './components/admin/UserManagement';
+import UserLogs from './components/admin/UserLogs';
+
+function ProtectedRoute({ children, requireRole }: { children: React.ReactNode; requireRole?: string[] }) {
+  const { appUser, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+          <p className="text-gray-500">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!appUser) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (requireRole && !requireRole.includes(appUser.role)) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <>{children}</>;
+}
+
+function AppRoutes() {
+  const { appUser, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+          <p className="text-gray-500">Loading application...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show PIN setup if user is logged in but hasn't set PIN
+  if (appUser && !appUser.pinSet) {
+    return <PinSetup />;
+  }
+
+  return (
+    <Routes>
+      <Route
+        path="/login"
+        element={appUser ? <Navigate to="/dashboard" replace /> : <LoginPage />}
+      />
+      <Route
+        path="/"
+        element={
+          <ProtectedRoute>
+            <Layout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<Navigate to="/dashboard" replace />} />
+        <Route path="dashboard" element={<ExecutiveDashboard />} />
+        <Route path="date-filter" element={<DateFilterDashboard />} />
+        <Route path="ledger" element={<DailyLedger />} />
+        <Route
+          path="admin/users"
+          element={
+            <ProtectedRoute requireRole={['admin']}>
+              <UserManagement />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="admin/logs"
+          element={
+            <ProtectedRoute requireRole={['admin']}>
+              <UserLogs />
+            </ProtectedRoute>
+          }
+        />
+      </Route>
+      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+    </Routes>
+  );
+}
+
+export default function App() {
+  return <AppRoutes />;
+}

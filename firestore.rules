@@ -1,0 +1,83 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && getUserData().role == 'admin';
+    }
+
+    function isEditor() {
+      return isAuthenticated() && (getUserData().role == 'editor' || getUserData().role == 'admin');
+    }
+
+    function isViewer() {
+      return isAuthenticated() && (
+        getUserData().role == 'viewer' ||
+        getUserData().role == 'editor' ||
+        getUserData().role == 'admin'
+      );
+    }
+
+    // Users collection
+    match /users/{userId} {
+      // Anyone authenticated can read their own document
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      // Users can create their own document on first sign-in
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      // Users can update their own document (for PIN, lastLogin)
+      // Admins can update any user document (for role changes)
+      allow update: if isAuthenticated() && (
+        request.auth.uid == userId ||
+        isAdmin()
+      );
+      // Only admins can delete users
+      allow delete: if isAdmin();
+    }
+
+    // Transactions collection
+    match /transactions/{transactionId} {
+      // All authenticated users can read
+      allow read: if isViewer();
+      // Editors and admins can create/update/delete
+      allow create: if isEditor();
+      allow update: if isEditor();
+      allow delete: if isEditor();
+    }
+
+    // Entities collection
+    match /entities/{entityId} {
+      // All authenticated users can read
+      allow read: if isViewer();
+      // Only admins can modify entities
+      allow write: if isAdmin();
+    }
+
+    // Categories collection
+    match /categories/{categoryId} {
+      // All authenticated users can read
+      allow read: if isViewer();
+      // Only admins can modify categories
+      allow write: if isAdmin();
+    }
+
+    // User Logs collection
+    match /userLogs/{logId} {
+      // Only admins can read logs
+      allow read: if isAdmin();
+      // Any authenticated user can create logs (for activity tracking)
+      allow create: if isAuthenticated();
+      // Logs cannot be updated or deleted
+      allow update, delete: if false;
+    }
+  }
+}
