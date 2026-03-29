@@ -70,11 +70,14 @@ export function getStatusLabel(netMovement: number, hasActivity: boolean): {
 export const CATEGORIES = [
   'Sales Receipt',
   'Purchase Payment',
+  'Sales payment',
+  'sales payment',
   'Salary',
   'Rent',
   'Utilities',
   'Tax Payment',
   'Loan Repayment',
+  'THIRD PERSON LOAN REPAYMENT',
   'Bank Charges',
   'Petty Cash',
   'Transfer',
@@ -84,7 +87,10 @@ export const CATEGORIES = [
   'Stock Labour',
   'Fastag',
   'Gerej labour',
-  'sales payment',
+  'Silak',
+  'LIGHTBILL',
+  'TRANSPORT',
+  'PIDILITE UNLOADING CHARGE#',
 ];
 
 export const ENTITIES = [

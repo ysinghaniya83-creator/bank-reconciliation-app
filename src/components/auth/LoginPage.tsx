@@ -23,8 +23,8 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8">
+    <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md p-8">
         {/* Logo/Header */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
@@ -32,13 +32,13 @@ export default function LoginPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Bank Reconciliation</h1>
-          <p className="text-gray-500 mt-1 text-sm">Financial Management System</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Bank Reconciliation</h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">Financial Management System</p>
         </div>
 
         {/* Entities Preview */}
-        <div className="bg-gray-50 rounded-xl p-4 mb-6">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Managing Accounts</p>
+        <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4 mb-6">
+          <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Managing Accounts</p>
           <div className="space-y-1">
             {[
               'Kishan Enterprise | ICICI',
@@ -48,7 +48,7 @@ export default function LoginPage() {
             ].map((entity, i) => (
               <div key={i} className="flex items-center gap-2">
                 <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
-                <span className="text-xs text-gray-600">{entity}</span>
+                <span className="text-xs text-gray-600 dark:text-gray-300">{entity}</span>
               </div>
             ))}
           </div>
@@ -65,7 +65,7 @@ export default function LoginPage() {
         <button
           onClick={handleGoogleSignIn}
           disabled={loading}
-          className="w-full flex items-center justify-center gap-3 bg-white border-2 border-gray-200 hover:border-blue-400 hover:bg-blue-50 text-gray-700 font-semibold py-3 px-4 rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+          className="w-full flex items-center justify-center gap-3 bg-white dark:bg-gray-700 border-2 border-gray-200 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-semibold py-3 px-4 rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
         >
           {loading ? (
             <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
@@ -92,7 +92,7 @@ export default function LoginPage() {
           {loading ? 'Signing in...' : 'Continue with Google'}
         </button>
 
-        <p className="text-center text-xs text-gray-400 mt-6">
+        <p className="text-center text-xs text-gray-400 dark:text-gray-500 mt-6">
           Access is restricted to authorized personnel only
         </p>
       </div>

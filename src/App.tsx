@@ -8,6 +8,8 @@ import DateFilterDashboard from './components/dashboard/DateFilterDashboard';
 import DailyLedger from './components/ledger/DailyLedger';
 import UserManagement from './components/admin/UserManagement';
 import UserLogs from './components/admin/UserLogs';
+import ReportsDashboard from './components/reports/ReportsDashboard';
+import Settings from './components/admin/Settings';
 
 function ProtectedRoute({ children, requireRole }: { children: React.ReactNode; requireRole?: string[] }) {
   const { appUser, loading } = useAuth();
@@ -71,6 +73,15 @@ function AppRoutes() {
         <Route path="dashboard" element={<ExecutiveDashboard />} />
         <Route path="date-filter" element={<DateFilterDashboard />} />
         <Route path="ledger" element={<DailyLedger />} />
+        <Route path="reports" element={<ReportsDashboard />} />
+        <Route
+          path="admin/settings"
+          element={
+            <ProtectedRoute requireRole={['admin']}>
+              <Settings />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="admin/users"
           element={

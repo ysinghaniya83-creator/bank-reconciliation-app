@@ -12,6 +12,8 @@ const pageTitles: Record<string, string> = {
   '/dashboard': "Today's View",
   '/date-filter': 'Date Filter Dashboard',
   '/ledger': 'Daily Ledger',
+  '/reports': 'Reports',
+  '/admin/settings': 'Settings',
   '/admin/users': 'User Management',
   '/admin/logs': 'Activity Logs',
 };
@@ -38,7 +40,7 @@ export default function Layout() {
   }, [location.pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div className="flex h-screen bg-gray-100 overflow-hidden">
+    <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">
       {/* PIN Lock Overlay */}
       {isLocked && <PinLock />}
 
@@ -65,7 +67,7 @@ export default function Layout() {
           onMenuClick={() => setSidebarOpen(true)}
           title={title}
         />
-        <main className="flex-1 overflow-y-auto p-4 lg:p-6">
+        <main className="flex-1 overflow-y-auto p-4 lg:p-6 bg-gray-50 dark:bg-gray-900">
           <Outlet />
         </main>
       </div>

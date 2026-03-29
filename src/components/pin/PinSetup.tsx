@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { useAuth } from '../../contexts/AuthContext';
@@ -17,8 +17,13 @@ export default function PinSetup() {
 
   const handleDigit = (digit: string) => {
     if (currentPin.length < 4) {
-      setCurrentPin(prev => prev + digit);
+      const newPin = currentPin + digit;
+      setCurrentPin(newPin);
       setError('');
+      // Auto-advance to confirm step when 4 digits entered in enter step
+      if (step === 'enter' && newPin.length === 4) {
+        setTimeout(() => setStep('confirm'), 150);
+      }
     }
   };
 
@@ -32,6 +37,53 @@ export default function PinSetup() {
     setError('');
   };
 
+  // Keyboard listener
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (loading) return;
+      if (e.key >= '0' && e.key <= '9') {
+        handleDigit(e.key);
+      } else if (e.key === 'Backspace') {
+        handleBackspace();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [pin, confirmPin, step, loading]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-confirm when 4 digits entered in confirm step
+  useEffect(() => {
+    if (step === 'confirm' && confirmPin.length === 4) {
+      handleConfirm(confirmPin);
+    }
+  }, [confirmPin]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleConfirm = async (enteredConfirm: string) => {
+    if (pin !== enteredConfirm) {
+      setError('PINs do not match. Please try again.');
+      setStep('enter');
+      setPin('');
+      setConfirmPin('');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const hashed = await hashPin(pin);
+      if (!appUser) return;
+      await updateDoc(doc(db, 'users', appUser.uid), {
+        pinHash: hashed,
+        pinSet: true,
+      });
+      await refreshUser();
+    } catch (err) {
+      console.error('Error saving PIN:', err);
+      setError('Failed to save PIN. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleNext = async () => {
     if (currentPin.length !== 4) {
       setError('Please enter a 4-digit PIN');
@@ -41,31 +93,7 @@ export default function PinSetup() {
     if (step === 'enter') {
       setStep('confirm');
     } else {
-      // Confirm step
-      if (pin !== confirmPin) {
-        setError('PINs do not match. Please try again.');
-        setStep('enter');
-        setPin('');
-        setConfirmPin('');
-        return;
-      }
-
-      // Save PIN
-      setLoading(true);
-      try {
-        const hashed = await hashPin(pin);
-        if (!appUser) return;
-        await updateDoc(doc(db, 'users', appUser.uid), {
-          pinHash: hashed,
-          pinSet: true,
-        });
-        await refreshUser();
-      } catch (err) {
-        console.error('Error saving PIN:', err);
-        setError('Failed to save PIN. Please try again.');
-      } finally {
-        setLoading(false);
-      }
+      await handleConfirm(confirmPin);
     }
   };
 

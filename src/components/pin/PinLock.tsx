@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePin } from '../../contexts/PinContext';
 import { hashPin } from '../../lib/utils';
@@ -18,7 +18,6 @@ export default function PinLock() {
       const newPin = pin + digit;
       setPin(newPin);
       setError('');
-      // Auto-verify when 4 digits entered
       if (newPin.length === 4) {
         verifyPin(newPin);
       }
@@ -29,6 +28,20 @@ export default function PinLock() {
     setPin(prev => prev.slice(0, -1));
     setError('');
   };
+
+  // Keyboard listener
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (loading || attempts >= MAX_ATTEMPTS) return;
+      if (e.key >= '0' && e.key <= '9') {
+        handleDigit(e.key);
+      } else if (e.key === 'Backspace') {
+        handleBackspace();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [pin, loading, attempts]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const verifyPin = async (enteredPin: string) => {
     if (!appUser?.pinHash) return;
@@ -66,7 +79,10 @@ export default function PinLock() {
   const digits = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', '⌫'];
 
   return (
-    <div className="fixed inset-0 bg-gray-900 bg-opacity-95 z-50 flex items-center justify-center p-4">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ backgroundColor: '#0a0a0a' }}
+    >
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8">
         {/* Header */}
         <div className="text-center mb-6">

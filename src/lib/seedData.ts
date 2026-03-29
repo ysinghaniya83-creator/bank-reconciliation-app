@@ -1,147 +1,553 @@
-import { collection, doc, setDoc, Timestamp, getDocs } from 'firebase/firestore';
+import { collection, doc, writeBatch, Timestamp, getDocs, getCountFromServer } from 'firebase/firestore';
 import { db } from './firebase';
 import { ENTITIES, CATEGORIES, OPENING_DATE } from './utils';
 
-export async function seedEntities(): Promise<void> {
-  const entitiesRef = collection(db, 'entities');
-  const snapshot = await getDocs(entitiesRef);
+const TRANSACTIONS_DATA = [
+  { date: '2026-03-06', entityName: 'Kishan Enterprise | ICICI', description: 'GATEWAY', category: 'Diesel', credit: null, debit: 200000.0 },
+  { date: '2026-03-06', entityName: 'Kishan Enterprise | ICICI', description: 'FASTAG', category: 'Utilities', credit: null, debit: 40006.0 },
+  { date: '2026-03-07', entityName: 'Kishan Enterprise | ICICI', description: 'AVON', category: 'sales payment', credit: 106022.0, debit: null },
+  { date: '2026-03-07', entityName: 'Kishan Enterprise | ICICI', description: 'AYUSH SALARY', category: 'Salary', credit: null, debit: 12000.0 },
+  { date: '2026-03-07', entityName: 'Kishan Enterprise | ICICI', description: 'UMESH BHAI', category: 'Salary', credit: null, debit: 5000.0 },
+  { date: '2026-03-07', entityName: 'Kishan Enterprise | ICICI', description: 'DRIVER SALARY SILAK HISAB', category: 'Salary', credit: null, debit: 95700.0 },
+  { date: '2026-03-07', entityName: 'Kishan Enterprise | ICICI', description: 'DHRUV MOTORS', category: 'Purchase Payment', credit: null, debit: 1970.0 },
+  { date: '2026-03-07', entityName: 'Kishan Enterprise | ICICI', description: 'YAKSH CARTING', category: 'Transfer', credit: null, debit: 50000.0 },
+  { date: '2026-03-07', entityName: 'Kishan Enterprise | ICICI', description: 'VARACHHA SARASWAT', category: 'Transfer', credit: null, debit: 25000.0 },
+  { date: '2026-03-07', entityName: 'Kishan Enterprise | ICICI', description: 'FREAMI CARTING', category: 'Transfer', credit: null, debit: 100000.0 },
+  { date: '2026-03-07', entityName: 'Fremi Carting | Saraswat Bank', description: 'KISHAN ENTERPRISE', category: 'Transfer', credit: 100000.0, debit: null },
+  { date: '2026-03-07', entityName: 'Fremi Carting | Saraswat Bank', description: 'MULAJI WELDER', category: 'Gerej labour', credit: null, debit: 50000.0 },
+  { date: '2026-03-07', entityName: 'Fremi Carting | Saraswat Bank', description: 'FASTAG', category: 'Fastag', credit: null, debit: 10000.0 },
+  { date: '2026-03-07', entityName: 'Fremi Carting | Saraswat Bank', description: 'DRIVER SILAK', category: 'Salary', credit: null, debit: 2000.0 },
+  { date: '2026-03-07', entityName: 'Yaksh Carting | HDFC', description: 'KISHAN ENTERPRISE', category: 'Transfer', credit: 50000.0, debit: null },
+  { date: '2026-03-07', entityName: 'Yaksh Carting | HDFC', description: 'RAKESH TALOJA', category: 'Purchase Payment', credit: null, debit: 6800.0 },
+  { date: '2026-03-07', entityName: 'Yaksh Carting | HDFC', description: 'JAMVANA', category: 'Purchase Payment', credit: null, debit: 1200.0 },
+  { date: '2026-03-06', entityName: 'Yaksh Carting | HDFC', description: 'SHIVAN BURIYA', category: 'Purchase Payment', credit: null, debit: 1000.0 },
+  { date: '2026-03-06', entityName: 'Yaksh Carting | HDFC', description: 'YAAD NATI', category: 'Purchase Payment', credit: null, debit: 780.0 },
+  { date: '2026-03-07', entityName: 'Yaksh Carting | HDFC', description: 'DRIVER SILAK', category: 'Salary', credit: null, debit: 2000.0 },
+  { date: '2026-03-07', entityName: 'Shree Developer | Varachha Bank', description: 'KISHAN ENTERPRISE', category: 'Transfer', credit: 25000.0, debit: null },
+  { date: '2026-03-07', entityName: 'Shree Developer | Varachha Bank', description: 'TRACTOR', category: 'Purchase Payment', credit: null, debit: 17000.0 },
+  { date: '2026-03-07', entityName: 'Shree Developer | Varachha Bank', description: 'FASTAG', category: 'Other', credit: null, debit: 3200.0 },
+  { date: '2026-03-08', entityName: 'Fremi Carting | Saraswat Bank', description: 'FASTAG', category: 'Other', credit: null, debit: 10000.0 },
+  { date: '2026-03-08', entityName: 'Fremi Carting | Saraswat Bank', description: 'ALI BOSTER', category: 'Purchase Payment', credit: null, debit: 7000.0 },
+  { date: '2026-03-08', entityName: 'Yaksh Carting | HDFC', description: 'CASH WITHDRAWAL', category: 'Petty Cash', credit: null, debit: 5000.0 },
+  { date: '2026-03-08', entityName: 'Yaksh Carting | HDFC', description: 'CASH WITHDRAWAL', category: 'Petty Cash', credit: null, debit: 5000.0 },
+  { date: '2026-03-08', entityName: 'Yaksh Carting | HDFC', description: 'DRIVER SILAK', category: 'Salary', credit: null, debit: 2000.0 },
+  { date: '2026-03-08', entityName: 'Yaksh Carting | HDFC', description: 'JAMVANAN', category: 'Purchase Payment', credit: null, debit: 650.0 },
+  { date: '2026-03-08', entityName: 'Yaksh Carting | HDFC', description: 'OLD TYRE SELL', category: 'Purchase Payment', credit: 5250.0, debit: null },
+  { date: '2026-03-08', entityName: 'Yaksh Carting | HDFC', description: 'KISHAN ENTERPRISE', category: 'Transfer', credit: 50000.0, debit: null },
+  { date: '2026-03-08', entityName: 'Yaksh Carting | HDFC', description: 'ELECTRIC SAMAN', category: 'Purchase Payment', credit: null, debit: 3300.0 },
+  { date: '2026-03-08', entityName: 'Yaksh Carting | HDFC', description: 'STOCK LABER', category: 'Purchase Payment', credit: null, debit: 15000.0 },
+  { date: '2026-03-08', entityName: 'Yaksh Carting | HDFC', description: 'STOCK LABER ASHISH BHURIYA', category: 'Purchase Payment', credit: null, debit: 6000.0 },
+  { date: '2026-03-09', entityName: 'Shree Developer | Varachha Bank', description: 'FASTAG', category: 'Other', credit: null, debit: 800.0 },
+  { date: '2026-03-09', entityName: 'Kishan Enterprise | ICICI', description: 'MAHANT ENT', category: 'Purchase Payment', credit: 181960.0, debit: null },
+  { date: '2026-03-09', entityName: 'Kishan Enterprise | ICICI', description: 'AMAR FOUND', category: 'Purchase Payment', credit: 500000.0, debit: null },
+  { date: '2026-03-09', entityName: 'Kishan Enterprise | ICICI', description: 'AMAR FOUND', category: 'Purchase Payment', credit: 90000.0, debit: null },
+  { date: '2026-03-09', entityName: 'Kishan Enterprise | ICICI', description: 'PRAMUKH DARSHAN', category: 'Purchase Payment', credit: 121860.0, debit: null },
+  { date: '2026-03-09', entityName: 'Kishan Enterprise | ICICI', description: 'INAYA TRADERS', category: 'Purchase Payment', credit: 1.0, debit: null },
+  { date: '2026-03-09', entityName: 'Kishan Enterprise | ICICI', description: 'INAYA TRADERS', category: 'Purchase Payment', credit: 85813.0, debit: null },
+  { date: '2026-03-09', entityName: 'Kishan Enterprise | ICICI', description: 'JAIN SUKHIBA MANGILAL', category: 'Purchase Payment', credit: 244992.0, debit: null },
+  { date: '2026-03-09', entityName: 'Kishan Enterprise | ICICI', description: 'OM SAI ENTERPRISES', category: 'Purchase Payment', credit: 50000.0, debit: null },
+  { date: '2026-03-09', entityName: 'Kishan Enterprise | ICICI', description: 'STOCK LABER SIVAN BHURIYA', category: 'Purchase Payment', credit: null, debit: 50000.0 },
+  { date: '2026-03-09', entityName: 'Kishan Enterprise | ICICI', description: 'JAY MATAJI MINERALS', category: 'Purchase Payment', credit: null, debit: 390000.0 },
+  { date: '2026-03-09', entityName: 'Kishan Enterprise | ICICI', description: 'DRIVER SILAK', category: 'Salary', credit: null, debit: 7000.0 },
+  { date: '2026-03-09', entityName: 'Kishan Enterprise | ICICI', description: 'YAKSH CARTING', category: 'Transfer', credit: null, debit: 50000.0 },
+  { date: '2026-03-09', entityName: 'Kishan Enterprise | ICICI', description: 'PATEL CHEMICALS', category: 'Loan Repayment', credit: null, debit: 100000.0 },
+  { date: '2026-03-09', entityName: 'Kishan Enterprise | ICICI', description: 'ACC LIMITED', category: 'Purchase Payment', credit: null, debit: 424853.0 },
+  { date: '2026-03-09', entityName: 'Kishan Enterprise | ICICI', description: 'GALAXY MACHINE', category: 'Purchase Payment', credit: null, debit: 200000.0 },
+  { date: '2026-03-09', entityName: 'Yaksh Carting | HDFC', description: 'DRIVER SILAK', category: 'Silak', credit: null, debit: 2000.0 },
+  { date: '2026-03-10', entityName: 'Kishan Enterprise | ICICI', description: 'EMI', category: 'Loan Repayment', credit: null, debit: 264242.0 },
+  { date: '2026-03-10', entityName: 'Kishan Enterprise | ICICI', description: 'SOURAV TRADING', category: 'Sales payment', credit: 25000.0, debit: null },
+  { date: '2026-03-10', entityName: 'Kishan Enterprise | ICICI', description: 'SUHAS MARBLE', category: 'Sales payment', credit: 61744.0, debit: null },
+  { date: '2026-03-10', entityName: 'Kishan Enterprise | ICICI', description: 'C TECHINSTRUMENT', category: 'Purchase Payment', credit: null, debit: 32922.0 },
+  { date: '2026-03-10', entityName: 'Kishan Enterprise | ICICI', description: 'SHREEJI BULDCON COMMISSION PATE', category: 'Sales payment', credit: null, debit: 15400.0 },
+  { date: '2026-03-10', entityName: 'Kishan Enterprise | ICICI', description: 'DRIVER SILAK', category: 'Silak', credit: null, debit: 7000.0 },
+  { date: '2026-03-10', entityName: 'Kishan Enterprise | ICICI', description: 'KASHAF GLOBAL', category: 'Sales payment', credit: 50000.0, debit: null },
+  { date: '2026-03-10', entityName: 'Fremi Carting | Saraswat Bank', description: '9936 GENIYO AC REPAIRING', category: 'Other', credit: null, debit: 3500.0 },
+  { date: '2026-03-10', entityName: 'Fremi Carting | Saraswat Bank', description: 'OLD OIL 200 LITER BUY', category: 'Purchase Payment', credit: null, debit: 8000.0 },
+  { date: '2026-03-10', entityName: 'Yaksh Carting | HDFC', description: 'NASTO', category: 'Other', credit: null, debit: 100.0 },
+  { date: '2026-03-10', entityName: 'Yaksh Carting | HDFC', description: 'RECHARGE', category: 'Other', credit: null, debit: 859.0 },
+  { date: '2026-03-10', entityName: 'Yaksh Carting | HDFC', description: '4528 DIESEL CHIKHLI', category: 'Diesel', credit: null, debit: 5000.0 },
+  { date: '2026-03-10', entityName: 'Yaksh Carting | HDFC', description: 'FASTAG TOLL', category: 'Fastag', credit: null, debit: 10000.0 },
+  { date: '2026-03-10', entityName: 'Yaksh Carting | HDFC', description: 'DRIVER SILAK', category: 'Silak', credit: null, debit: 2000.0 },
+  { date: '2026-03-10', entityName: 'Yaksh Carting | HDFC', description: 'SURBI AUTO ELECTRICAL', category: 'Purchase Payment', credit: null, debit: 1760.0 },
+  { date: '2026-03-10', entityName: 'Yaksh Carting | HDFC', description: 'DRIVER HISAB AND SALARY', category: 'Salary', credit: null, debit: 22000.0 },
+  { date: '2026-03-10', entityName: 'Yaksh Carting | HDFC', description: 'SOMO SENTING WORK VAREDIA', category: 'Other', credit: null, debit: 5000.0 },
+  { date: '2026-03-10', entityName: 'Kishan Enterprise | ICICI', description: 'PIDILITE', category: 'Sales payment', credit: 655344.0, debit: null },
+  { date: '2026-03-10', entityName: 'Kishan Enterprise | ICICI', description: 'ASHAPURA ENTERPRISES', category: 'Sales payment', credit: 118654.0, debit: null },
+  { date: '2026-03-10', entityName: 'Kishan Enterprise | ICICI', description: 'WALPLAST VAPI', category: 'Sales payment', credit: 613921.0, debit: null },
+  { date: '2026-03-10', entityName: 'Kishan Enterprise | ICICI', description: 'BHARAT SILICA', category: 'Sales payment', credit: 400000.0, debit: null },
+  { date: '2026-03-10', entityName: 'Kishan Enterprise | ICICI', description: 'PRUTHVI PETROLEUM', category: 'Diesel', credit: null, debit: 500000.0 },
+  { date: '2026-03-11', entityName: 'Kishan Enterprise | ICICI', description: 'BIRLANU', category: 'Sales payment', credit: 127798.0, debit: null },
+  { date: '2026-03-11', entityName: 'Kishan Enterprise | ICICI', description: 'SHREE KRUPA ENTERPRISES', category: 'Sales payment', credit: 636020.0, debit: null },
+  { date: '2026-03-11', entityName: 'Kishan Enterprise | ICICI', description: 'VEKARIYA HANSABEN', category: 'Other', credit: 24575.0, debit: null },
+  { date: '2026-03-11', entityName: 'Kishan Enterprise | ICICI', description: 'EMI', category: 'Loan Repayment', credit: null, debit: 100720.0 },
+  { date: '2026-03-11', entityName: 'Kishan Enterprise | ICICI', description: 'UNIVERSAL TYRE', category: 'Purchase Payment', credit: null, debit: 200000.0 },
+  { date: '2026-03-11', entityName: 'Kishan Enterprise | ICICI', description: 'YAKSH CARTING', category: 'Transfer', credit: null, debit: 20000.0 },
+  { date: '2026-03-11', entityName: 'Kishan Enterprise | ICICI', description: 'FREMI CARTING', category: 'Transfer', credit: null, debit: 50000.0 },
+  { date: '2026-03-11', entityName: 'Kishan Enterprise | ICICI', description: 'DRIVER SILAK', category: 'Silak', credit: null, debit: 2000.0 },
+  { date: '2026-03-11', entityName: 'Kishan Enterprise | ICICI', description: 'SHREYASH 4 DRIVER SALARY', category: 'Salary', credit: null, debit: 40000.0 },
+  { date: '2026-03-11', entityName: 'Kishan Enterprise | ICICI', description: 'G D A AND CO TAX', category: 'Tax Payment', credit: null, debit: 150000.0 },
+  { date: '2026-03-11', entityName: 'Kishan Enterprise | ICICI', description: 'SAI SAMARTH POLYTEX', category: 'Purchase Payment', credit: null, debit: 600000.0 },
+  { date: '2026-03-12', entityName: 'Kishan Enterprise | ICICI', description: 'GATEWAY PETROLEUM', category: 'Diesel', credit: null, debit: 200000.0 },
+  { date: '2026-03-12', entityName: 'Kishan Enterprise | ICICI', description: 'ATMIYA ISPAT', category: 'Purchase Payment', credit: null, debit: 200000.0 },
+  { date: '2026-03-12', entityName: 'Kishan Enterprise | ICICI', description: 'PASHUPATINATH SALES AGENCY', category: 'Sales payment', credit: 21000.0, debit: null },
+  { date: '2026-03-12', entityName: 'Kishan Enterprise | ICICI', description: 'IMPS CHARGE', category: 'Bank Charges', credit: null, debit: 652.0 },
+  { date: '2026-03-12', entityName: 'Kishan Enterprise | ICICI', description: 'SAHANI TRANSPORT', category: 'TRANSPORT', credit: null, debit: 32600.0 },
+  { date: '2026-03-12', entityName: 'Kishan Enterprise | ICICI', description: 'ANSHIKA ROADLINES', category: 'TRANSPORT', credit: null, debit: 35000.0 },
+  { date: '2026-03-12', entityName: 'Kishan Enterprise | ICICI', description: 'GOHIL ENGITECH CO', category: 'Purchase Payment', credit: null, debit: 101200.0 },
+  { date: '2026-03-12', entityName: 'Kishan Enterprise | ICICI', description: 'STOCK MAHARAJ SALARY', category: 'Salary', credit: null, debit: 30000.0 },
+  { date: '2026-03-12', entityName: 'Kishan Enterprise | ICICI', description: 'YAKSH CARTING', category: 'Transfer', credit: null, debit: 50000.0 },
+  { date: '2026-03-12', entityName: 'Kishan Enterprise | ICICI', description: 'DRIVER HISAB', category: 'Salary', credit: null, debit: 9745.0 },
+  { date: '2026-03-12', entityName: 'Kishan Enterprise | ICICI', description: 'SHREYASH 1 DRIVER SALARY', category: 'Salary', credit: null, debit: 10000.0 },
+  { date: '2026-03-12', entityName: 'Kishan Enterprise | ICICI', description: 'diesel 4281', category: 'Diesel', credit: null, debit: 5000.0 },
+  { date: '2026-03-11', entityName: 'Yaksh Carting | HDFC', description: 'kishan enterprise', category: 'Transfer', credit: 20000.0, debit: null },
+  { date: '2026-03-11', entityName: 'Yaksh Carting | HDFC', description: 'rakesh taloja pidilite', category: 'PIDILITE UNLOADING CHARGE#', credit: null, debit: 16000.0 },
+  { date: '2026-03-11', entityName: 'Yaksh Carting | HDFC', description: 'driver silak', category: 'Salary', credit: null, debit: 4000.0 },
+  { date: '2026-03-11', entityName: 'Yaksh Carting | HDFC', description: 'nasto', category: 'Other', credit: null, debit: 100.0 },
+  { date: '2026-03-12', entityName: 'Yaksh Carting | HDFC', description: 'bhavani travels', category: 'Other', credit: null, debit: 5100.0 },
+  { date: '2026-03-12', entityName: 'Yaksh Carting | HDFC', description: 'driver silak', category: 'Salary', credit: null, debit: 3000.0 },
+  { date: '2026-03-12', entityName: 'Yaksh Carting | HDFC', description: 'kishan enterprise', category: 'Transfer', credit: 50000.0, debit: null },
+  { date: '2026-03-10', entityName: 'Fremi Carting | Saraswat Bank', description: 'DRIVER SILAK', category: 'Salary', credit: null, debit: 2000.0 },
+  { date: '2026-03-11', entityName: 'Fremi Carting | Saraswat Bank', description: 'KISHAN ENT', category: 'Transfer', credit: 50000.0, debit: null },
+  { date: '2026-03-11', entityName: 'Fremi Carting | Saraswat Bank', description: 'lot', category: 'Purchase Payment', credit: null, debit: 550.0 },
+  { date: '2026-03-11', entityName: 'Fremi Carting | Saraswat Bank', description: 'FASTAG', category: 'Fastag', credit: null, debit: 10000.0 },
+  { date: '2026-03-12', entityName: 'Fremi Carting | Saraswat Bank', description: 'FASTAG', category: 'Fastag', credit: null, debit: 10000.0 },
+  { date: '2026-03-12', entityName: 'Fremi Carting | Saraswat Bank', description: 'MAHESH VEKARIYA', category: 'Salary', credit: null, debit: 5000.0 },
+  { date: '2026-03-12', entityName: 'Fremi Carting | Saraswat Bank', description: 'ANKLESHWAR TRUCK DISH BUYkabadi', category: 'Purchase Payment', credit: null, debit: 3000.0 },
+  { date: '2026-03-12', entityName: 'Fremi Carting | Saraswat Bank', description: 'SAVLI SAND', category: 'Purchase Payment', credit: null, debit: 13800.0 },
+  { date: '2026-03-13', entityName: 'Fremi Carting | Saraswat Bank', description: 'CASH LIDHA', category: 'Petty Cash', credit: null, debit: 2000.0 },
+  { date: '2026-03-13', entityName: 'Fremi Carting | Saraswat Bank', description: 'KISHAN ENT', category: 'Transfer', credit: 50000.0, debit: null },
+  { date: '2026-03-13', entityName: 'Fremi Carting | Saraswat Bank', description: 'diesel bill chacha pump', category: 'Diesel', credit: null, debit: 35337.0 },
+  { date: '2026-03-13', entityName: 'Kishan Enterprise | ICICI', description: 'DRIVER SILAK', category: 'Silak', credit: null, debit: 7000.0 },
+  { date: '2026-03-12', entityName: 'Kishan Enterprise | ICICI', description: 'OM SAI TRADERS', category: 'Sales payment', credit: 100000.0, debit: null },
+  { date: '2026-03-13', entityName: 'Kishan Enterprise | ICICI', description: 'MAHESH VEKARIYA', category: 'Salary', credit: null, debit: 30000.0 },
+  { date: '2026-03-13', entityName: 'Kishan Enterprise | ICICI', description: 'FREMI CARTING', category: 'Transfer', credit: null, debit: 50000.0 },
+  { date: '2026-03-12', entityName: 'Yaksh Carting | HDFC', description: 'SURBHI GARAGE BILL PAY', category: 'Other', credit: null, debit: 9000.0 },
+  { date: '2026-03-13', entityName: 'Yaksh Carting | HDFC', description: 'CASH WITHDRAWAL 15000 MAINTENANCE', category: 'Petty Cash', credit: null, debit: 20000.0 },
+  { date: '2026-03-13', entityName: 'Kishan Enterprise | ICICI', description: 'DRIVER SILAK', category: 'Driver', credit: null, debit: 7000.0 },
+  { date: '2026-03-13', entityName: 'Kishan Enterprise | ICICI', description: 'BHURO LABER', category: 'Stock Labour', credit: null, debit: 23000.0 },
+  { date: '2026-03-13', entityName: 'Kishan Enterprise | ICICI', description: 'TRISHUL AUTO PARTS', category: 'Purchase Payment', credit: null, debit: 6276.0 },
+  { date: '2026-03-13', entityName: 'Yaksh Carting | HDFC', description: 'WATER', category: 'Other', credit: null, debit: 26.0 },
+  { date: '2026-03-08', entityName: 'Yaksh Carting | HDFC', description: 'other expence', category: 'Other', credit: null, debit: 2150.0 },
+  { date: '2026-03-11', entityName: 'Shree Developer | Varachha Bank', description: 'FASTAG', category: 'Fastag', credit: null, debit: 11000.0 },
+  { date: '2026-03-11', entityName: 'Shree Developer | Varachha Bank', description: 'BANK CHARGES', category: 'Bank Charges', credit: null, debit: 177.0 },
+  { date: '2026-03-13', entityName: 'Kishan Enterprise | ICICI', description: 'NIYATI LOGISTIC', category: 'THIRD PERSON LOAN REPAYMENT', credit: 65799.0, debit: null },
+  { date: '2026-03-13', entityName: 'Kishan Enterprise | ICICI', description: 'PIDILITE', category: 'Sales payment', credit: 756375.0, debit: null },
+  { date: '2026-03-13', entityName: 'Kishan Enterprise | ICICI', description: 'NIYATI LOGISTIC', category: 'THIRD PERSON LOAN REPAYMENT', credit: 65796.0, debit: null },
+  { date: '2026-03-13', entityName: 'Kishan Enterprise | ICICI', description: 'MAGICRETE', category: 'Sales payment', credit: 149617.0, debit: null },
+  { date: '2026-03-13', entityName: 'Kishan Enterprise | ICICI', description: 'PRUTHVI PETROLEUM', category: 'Diesel', credit: null, debit: 500000.0 },
+  { date: '2026-03-14', entityName: 'Kishan Enterprise | ICICI', description: 'NIYATI LOGISTIC', category: 'THIRD PERSON LOAN REPAYMENT', credit: 73665.0, debit: null },
+  { date: '2026-03-14', entityName: 'Kishan Enterprise | ICICI', description: 'RUDRA TRADING', category: 'Sales payment', credit: 126000.0, debit: null },
+  { date: '2026-03-14', entityName: 'Kishan Enterprise | ICICI', description: 'PIC CODE SYSTEM', category: 'Purchase Payment', credit: null, debit: 2100.0 },
+  { date: '2026-03-14', entityName: 'Kishan Enterprise | ICICI', description: 'ACC LIMITED', category: 'Purchase Payment', credit: null, debit: 222978.0 },
+  { date: '2026-03-13', entityName: 'Yaksh Carting | HDFC', description: 'D  MART SURAT', category: 'Other', credit: null, debit: 2958.0 },
+  { date: '2026-03-13', entityName: 'Yaksh Carting | HDFC', description: 'KARYANU GHAR NU', category: 'Other', credit: null, debit: 1771.0 },
+  { date: '2026-03-14', entityName: 'Fremi Carting | Saraswat Bank', description: 'OTHER', category: 'Other', credit: null, debit: 80.0 },
+  { date: '2026-03-14', entityName: 'Kishan Enterprise | ICICI', description: 'DRIVER SILAK', category: 'Silak', credit: null, debit: 2000.0 },
+  { date: '2026-03-14', entityName: 'Kishan Enterprise | ICICI', description: 'UMESH BHAI', category: 'Salary', credit: null, debit: 10000.0 },
+  { date: '2026-03-14', entityName: 'Kishan Enterprise | ICICI', description: 'JALANDHARA UPI', category: 'THIRD PERSON LOAN REPAYMENT', credit: 50000.0, debit: null },
+  { date: '2026-03-14', entityName: 'Kishan Enterprise | ICICI', description: 'GAJERA JEN UPI', category: 'THIRD PERSON LOAN REPAYMENT', credit: 37037.0, debit: null },
+  { date: '2026-03-14', entityName: 'Kishan Enterprise | ICICI', description: 'DILIP BHAI DRIVER SALAERY MATE', category: 'Other', credit: null, debit: 30000.0 },
+  { date: '2026-03-14', entityName: 'Kishan Enterprise | ICICI', description: 'SHREENAYHJI JEWELLERS', category: 'THIRD PERSON LOAN REPAYMENT', credit: 50000.0, debit: null },
+  { date: '2026-03-14', entityName: 'Kishan Enterprise | ICICI', description: 'JALANDHARA', category: 'THIRD PERSON LOAN REPAYMENT', credit: 50000.0, debit: null },
+  { date: '2026-03-14', entityName: 'Kishan Enterprise | ICICI', description: 'JAYESHRAYKA', category: 'THIRD PERSON LOAN REPAYMENT', credit: 47500.0, debit: null },
+  { date: '2026-03-14', entityName: 'Kishan Enterprise | ICICI', description: 'WALPLAST VAPI', category: 'Sales payment', credit: 366051.0, debit: null },
+  { date: '2026-03-14', entityName: 'Kishan Enterprise | ICICI', description: 'SHREE KRUPA ENTERPRISES', category: 'Sales payment', credit: 145435.0, debit: null },
+  { date: '2026-03-15', entityName: 'Kishan Enterprise | ICICI', description: 'EMI', category: 'Loan Repayment', credit: null, debit: 929778.0 },
+  { date: '2026-03-15', entityName: 'Kishan Enterprise | ICICI', description: 'UPI SURESH BHAI', category: 'Other', credit: null, debit: 7000.0 },
+  { date: '2026-03-15', entityName: 'Kishan Enterprise | ICICI', description: 'DHRUV MOTORS', category: 'Purchase Payment', credit: null, debit: 713.0 },
+  { date: '2026-03-15', entityName: 'Kishan Enterprise | ICICI', description: 'NANDLAL BHAI ROYALTY PATE', category: 'Purchase Payment', credit: null, debit: 100000.0 },
+  { date: '2026-03-15', entityName: 'Kishan Enterprise | ICICI', description: 'DRIVER SILAK', category: 'Silak', credit: null, debit: 10000.0 },
+  { date: '2026-03-15', entityName: 'Kishan Enterprise | ICICI', description: 'ALPHABOND', category: 'Stock Labour', credit: null, debit: 68000.0 },
+  { date: '2026-03-14', entityName: 'Fremi Carting | Saraswat Bank', description: 'FASTAG', category: 'Fastag', credit: null, debit: 10000.0 },
+  { date: '2026-03-15', entityName: 'Fremi Carting | Saraswat Bank', description: 'FASTAG', category: 'Fastag', credit: null, debit: 10000.0 },
+  { date: '2026-03-14', entityName: 'Shree Developer | HDFC', description: 'TEA', category: 'Other', credit: null, debit: 40.0 },
+  { date: '2026-03-14', entityName: 'Yaksh Carting | HDFC', description: 'DRIVER SILAK', category: 'Silak', credit: null, debit: 2000.0 },
+  { date: '2026-03-15', entityName: 'Yaksh Carting | HDFC', description: 'DRIVER SILAK', category: 'Silak', credit: null, debit: 2000.0 },
+  { date: '2026-03-15', entityName: 'Yaksh Carting | HDFC', description: 'FASTAG', category: 'Fastag', credit: null, debit: 10000.0 },
+  { date: '2026-03-15', entityName: 'Yaksh Carting | HDFC', description: 'FASTAG', category: 'Fastag', credit: null, debit: 2383.0 },
+  { date: '2026-03-13', entityName: 'Shree Developer | Varachha Bank', description: 'FASTAG', category: 'Fastag', credit: null, debit: 8000.0 },
+  { date: '2026-03-15', entityName: 'Shree Developer | Varachha Bank', description: 'FASTAG', category: 'Fastag', credit: null, debit: 8000.0 },
+  { date: '2026-03-16', entityName: 'Kishan Enterprise | ICICI', description: '4281 diesel', category: 'Diesel', credit: null, debit: 5000.0 },
+  { date: '2026-03-16', entityName: 'Kishan Enterprise | ICICI', description: 'NANDLAL BHAI ROYALTY PATE', category: 'Purchase Payment', credit: null, debit: 200000.0 },
+  { date: '2026-03-16', entityName: 'Kishan Enterprise | ICICI', description: 'WESTERN BELTING', category: 'Purchase Payment', credit: null, debit: 64546.0 },
+  { date: '2026-03-16', entityName: 'Kishan Enterprise | ICICI', description: 'MADHURAM TYRES UPI', category: 'Purchase Payment', credit: null, debit: 2430.0 },
+  { date: '2026-03-16', entityName: 'Kishan Enterprise | ICICI', description: 'YAKSH CARTING', category: 'Transfer', credit: null, debit: 50000.0 },
+  { date: '2026-03-16', entityName: 'Kishan Enterprise | ICICI', description: 'DRIVER SALARY SILAK HISAB', category: 'Salary', credit: null, debit: 156200.0 },
+  { date: '2026-03-16', entityName: 'Kishan Enterprise | ICICI', description: 'MAHESH VEKARIYA 2 DRIVER SALARY', category: 'Salary', credit: null, debit: 20000.0 },
+  { date: '2026-03-16', entityName: 'Kishan Enterprise | ICICI', description: 'ARJUN INDUSTRIES', category: 'Purchase Payment', credit: null, debit: 54610.0 },
+  { date: '2026-03-16', entityName: 'Kishan Enterprise | ICICI', description: 'RESU BHURIYA', category: 'Stock Labour', credit: null, debit: 12000.0 },
+  { date: '2026-03-16', entityName: 'Yaksh Carting | HDFC', description: 'KISHAN ENT', category: 'Transfer', credit: 50000.0, debit: null },
+  { date: '2026-03-16', entityName: 'Yaksh Carting | HDFC', description: 'BUTTERFLY VALVE', category: 'Purchase Payment', credit: null, debit: 4340.0 },
+  { date: '2026-03-16', entityName: 'Yaksh Carting | HDFC', description: 'VEGETABLES BUY', category: 'Purchase Payment', credit: null, debit: 3290.0 },
+  { date: '2026-03-16', entityName: 'Yaksh Carting | HDFC', description: 'MEDICINE', category: 'Purchase Payment', credit: null, debit: 970.0 },
+  { date: '2026-03-17', entityName: 'Kishan Enterprise | ICICI', description: 'WALPLAST VAPI', category: 'Sales payment', credit: 59389.0, debit: null },
+  { date: '2026-03-17', entityName: 'Kishan Enterprise | ICICI', description: 'MARUTI ENTERPRISE', category: 'Sales payment', credit: 48198.0, debit: null },
+  { date: '2026-03-17', entityName: 'Kishan Enterprise | ICICI', description: 'SHREE KRUPA ENTERPRISES', category: 'Sales payment', credit: 143724.0, debit: null },
+  { date: '2026-03-17', entityName: 'Kishan Enterprise | ICICI', description: 'KASHAF GLOBAL', category: 'Sales payment', credit: 50000.0, debit: null },
+  { date: '2026-03-17', entityName: 'Kishan Enterprise | ICICI', description: 'SHREE DEVELOPER VARACHHA', category: 'Transfer', credit: null, debit: 30000.0 },
+  { date: '2026-03-17', entityName: 'Kishan Enterprise | ICICI', description: 'FASTAG', category: 'Fastag', credit: null, debit: 20000.0 },
+  { date: '2026-03-17', entityName: 'Kishan Enterprise | ICICI', description: 'NANDLAL BHAI ROYALTY PATE', category: 'Purchase Payment', credit: null, debit: 200000.0 },
+  { date: '2026-03-17', entityName: 'Kishan Enterprise | ICICI', description: 'DIESEL', category: 'Diesel', credit: null, debit: 5000.0 },
+  { date: '2026-03-17', entityName: 'Kishan Enterprise | ICICI', description: 'CIBELA BUILDCON UUCHINA', category: 'Transfer', credit: null, debit: 1000000.0 },
+  { date: '2026-03-17', entityName: 'Kishan Enterprise | ICICI', description: 'DRIVER SILAK', category: 'Driver', credit: null, debit: 9000.0 },
+  { date: '2026-03-17', entityName: 'Kishan Enterprise | ICICI', description: 'YAKSH CARTING', category: 'Transfer', credit: null, debit: 50000.0 },
+  { date: '2026-03-17', entityName: 'Kishan Enterprise | ICICI', description: 'KASHINATH DALVI  D A', category: 'Salary', credit: null, debit: 5500.0 },
+  { date: '2026-03-17', entityName: 'Kishan Enterprise | ICICI', description: 'TARKESHWAR TIWARI D A', category: 'Salary', credit: null, debit: 5500.0 },
+  { date: '2026-03-17', entityName: 'Kishan Enterprise | ICICI', description: 'MARUTI AUTO GPS', category: 'Purchase Payment', credit: null, debit: 40889.0 },
+  { date: '2026-03-16', entityName: 'Shree Developer | HDFC', description: 'AUDI DIESEL', category: 'Diesel', credit: null, debit: 3500.0 },
+  { date: '2026-03-16', entityName: 'Yaksh Carting | HDFC', description: 'MUSTAK OPRETAR', category: 'Salary', credit: null, debit: 5000.0 },
+  { date: '2026-03-16', entityName: 'Yaksh Carting | HDFC', description: 'RAKESH PIDILITE TALOJA', category: 'PIDILITE UNLOADING CHARGE#', credit: null, debit: 8000.0 },
+  { date: '2026-03-16', entityName: 'Yaksh Carting | HDFC', description: 'DRIVER SILAK', category: 'Silak', credit: null, debit: 2000.0 },
+  { date: '2026-03-17', entityName: 'Yaksh Carting | HDFC', description: 'SAVLI SAND', category: 'Purchase Payment', credit: null, debit: 13000.0 },
+  { date: '2026-03-17', entityName: 'Yaksh Carting | HDFC', description: 'DRIVER SILAK', category: 'Silak', credit: null, debit: 2000.0 },
+  { date: '2026-03-17', entityName: 'Yaksh Carting | HDFC', description: 'NASTO', category: 'Other', credit: null, debit: 160.0 },
+  { date: '2026-03-17', entityName: 'Yaksh Carting | HDFC', description: 'FASTAG', category: 'Fastag', credit: null, debit: 1000.0 },
+  { date: '2026-03-17', entityName: 'Yaksh Carting | HDFC', description: 'YAAD NATHI', category: 'Other', credit: null, debit: 100.0 },
+  { date: '2026-03-17', entityName: 'Yaksh Carting | HDFC', description: 'DRIVER SILAK', category: 'Silak', credit: null, debit: 9000.0 },
+  { date: '2026-03-17', entityName: 'Yaksh Carting | HDFC', description: 'BELT TRANSPORT', category: 'Other', credit: null, debit: 1050.0 },
+  { date: '2026-03-17', entityName: 'Yaksh Carting | HDFC', description: 'KISHAN ENT', category: 'Transfer', credit: 50000.0, debit: null },
+  { date: '2026-03-16', entityName: 'Fremi Carting | Saraswat Bank', description: 'FASTAG', category: 'Fastag', credit: null, debit: 10000.0 },
+  { date: '2026-03-16', entityName: 'Fremi Carting | Saraswat Bank', description: '2868 RIVER REPAIRING', category: 'Other', credit: null, debit: 920.0 },
+  { date: '2026-03-17', entityName: 'Shree Developer | Varachha Bank', description: 'KISHAN ENT', category: 'Transfer', credit: 30000.0, debit: null },
+  { date: '2026-03-17', entityName: 'Kishan Enterprise | ICICI', description: 'DIESEL', category: 'Diesel', credit: null, debit: 2000.0 },
+  { date: '2026-03-17', entityName: 'Kishan Enterprise | ICICI', description: 'PIDILITE', category: 'Sales payment', credit: 432328.0, debit: null },
+  { date: '2026-03-17', entityName: 'Kishan Enterprise | ICICI', description: 'PIDILITE', category: 'Sales payment', credit: 1533471.0, debit: null },
+  { date: '2026-03-17', entityName: 'Kishan Enterprise | ICICI', description: 'RUDRA TRADING COMPANY', category: 'Sales payment', credit: 89350.0, debit: null },
+  { date: '2026-03-17', entityName: 'Kishan Enterprise | ICICI', description: 'PRUTHVI PETROLEUM', category: 'Diesel', credit: null, debit: 500000.0 },
+  { date: '2026-03-18', entityName: 'Kishan Enterprise | ICICI', description: 'FREMI CARTING', category: 'Transfer', credit: null, debit: 50000.0 },
+  { date: '2026-03-18', entityName: 'Kishan Enterprise | ICICI', description: 'NANDLAL BHAI ROYALTY PATE', category: 'Purchase Payment', credit: null, debit: 200000.0 },
+  { date: '2026-03-18', entityName: 'Kishan Enterprise | ICICI', description: 'DRIVER SILAK SALARY', category: 'Salary', credit: null, debit: 28350.0 },
+  { date: '2026-03-18', entityName: 'Kishan Enterprise | ICICI', description: '9454 INSURANCE', category: 'Other', credit: null, debit: 55690.0 },
+  { date: '2026-03-18', entityName: 'Kishan Enterprise | ICICI', description: 'DIESEL', category: 'Diesel', credit: null, debit: 5000.0 },
+  { date: '2026-03-18', entityName: 'Kishan Enterprise | ICICI', description: 'MAGICRETE', category: 'Sales payment', credit: 278914.0, debit: null },
+  { date: '2026-03-18', entityName: 'Kishan Enterprise | ICICI', description: 'MARUTI ENTERPRISE', category: 'Sales payment', credit: 53713.0, debit: null },
+  { date: '2026-03-18', entityName: 'Kishan Enterprise | ICICI', description: 'SAHANI TRANSPORT', category: 'TRANSPORT', credit: null, debit: 32200.0 },
+  { date: '2026-03-18', entityName: 'Kishan Enterprise | ICICI', description: 'KALAM GEREJ', category: 'Other', credit: null, debit: 50000.0 },
+  { date: '2026-03-18', entityName: 'Kishan Enterprise | ICICI', description: 'RAMAKANT RAI KHORAKI', category: 'Salary', credit: null, debit: 3794.0 },
+  { date: '2026-03-18', entityName: 'Fremi Carting | Saraswat Bank', description: 'kishan enterprise', category: 'Transfer', credit: 50000.0, debit: null },
+  { date: '2026-03-18', entityName: 'Fremi Carting | Saraswat Bank', description: 'FASTAG', category: 'Utilities', credit: null, debit: 15000.0 },
+  { date: '2026-03-18', entityName: 'Yaksh Carting | HDFC', description: 'CASH WITHDRAWAL', category: 'Petty Cash', credit: null, debit: 10000.0 },
+  { date: '2026-03-18', entityName: 'Yaksh Carting | HDFC', description: 'FASTAG', category: 'Utilities', credit: null, debit: 10000.0 },
+  { date: '2026-03-18', entityName: 'Yaksh Carting | HDFC', description: 'FASTAG', category: 'Utilities', credit: null, debit: 1000.0 },
+  { date: '2026-03-18', entityName: 'Yaksh Carting | HDFC', description: 'MAVA LIDHA', category: 'Other', credit: null, debit: 500.0 },
+  { date: '2026-03-18', entityName: 'Shree Developer | Varachha Bank', description: 'FASTAG', category: 'Utilities', credit: null, debit: 8000.0 },
+  { date: '2026-03-18', entityName: 'Yaksh Carting | HDFC', description: 'SKODA DIESEL', category: 'Diesel', credit: null, debit: 2300.0 },
+  { date: '2026-03-18', entityName: 'Yaksh Carting | HDFC', description: '2868 WIRING', category: 'Other', credit: null, debit: 2000.0 },
+  { date: '2026-03-18', entityName: 'Yaksh Carting | HDFC', description: '7979 SILAK', category: 'Silak', credit: null, debit: 2000.0 },
+  { date: '2026-03-18', entityName: 'Yaksh Carting | HDFC', description: 'SAVLI SAND', category: 'Sales payment', credit: null, debit: 12900.0 },
+  { date: '2026-03-19', entityName: 'Yaksh Carting | HDFC', description: '2381 SILAK', category: 'Silak', credit: null, debit: 2000.0 },
+  { date: '2026-03-19', entityName: 'Fremi Carting | Saraswat Bank', description: '2282 silak', category: 'Silak', credit: null, debit: 2000.0 },
+  { date: '2026-03-18', entityName: 'Fremi Carting | Saraswat Bank', description: '3815 SILAK', category: 'Silak', credit: null, debit: 2000.0 },
+  { date: '2026-03-18', entityName: 'Fremi Carting | Saraswat Bank', description: 'FASTAG', category: 'Fastag', credit: null, debit: 10000.0 },
+  { date: '2026-03-19', entityName: 'Fremi Carting | Saraswat Bank', description: '9936 GENIO CLUTCH PLATE', category: 'Other', credit: null, debit: 2500.0 },
+  { date: '2026-03-19', entityName: 'Fremi Carting | Saraswat Bank', description: '8686 BHARUCH TOLL', category: 'Other', credit: null, debit: 1000.0 },
+  { date: '2026-03-19', entityName: 'Shree Developer | Varachha Bank', description: 'FASTAG', category: 'Fastag', credit: null, debit: 8000.0 },
+  { date: '2026-03-18', entityName: 'Kishan Enterprise | ICICI', description: 'MAGICRETE', category: 'Sales payment', credit: 278914.0, debit: null },
+  { date: '2026-03-18', entityName: 'Kishan Enterprise | ICICI', description: 'AADARSHAUTO TRACTOR PARTS', category: 'Purchase Payment', credit: null, debit: 7084.0 },
+  { date: '2026-03-18', entityName: 'Kishan Enterprise | ICICI', description: 'PRUTHVI PETROLEUM', category: 'Diesel', credit: null, debit: 250000.0 },
+  { date: '2026-03-18', entityName: 'Kishan Enterprise | ICICI', description: 'GATEWAY PETROLEUM', category: 'Diesel', credit: null, debit: 150000.0 },
+  { date: '2026-03-19', entityName: 'Kishan Enterprise | ICICI', description: 'SHREE KRUPA ENTERPRISES', category: 'Sales payment', credit: 618792.0, debit: null },
+  { date: '2026-03-19', entityName: 'Kishan Enterprise | ICICI', description: 'PIDILITE', category: 'Sales payment', credit: 105214.0, debit: null },
+  { date: '2026-03-19', entityName: 'Kishan Enterprise | ICICI', description: 'COUNDURA CONSTRUCTION CHEMICALS', category: 'Purchase Payment', credit: 99960.0, debit: null },
+  { date: '2026-03-19', entityName: 'Kishan Enterprise | ICICI', description: 'NANDLAL BHAI ROYALTY PATE', category: 'Purchase Payment', credit: null, debit: 200000.0 },
+  { date: '2026-03-19', entityName: 'Kishan Enterprise | ICICI', description: 'UNIVERSAL TYRE', category: 'Purchase Payment', credit: null, debit: 150000.0 },
+  { date: '2026-03-19', entityName: 'Kishan Enterprise | ICICI', description: '2722 2720 3424 SILAK', category: 'Silak', credit: null, debit: 12000.0 },
+  { date: '2026-03-19', entityName: 'Kishan Enterprise | ICICI', description: '3424 FASTAG', category: 'Other', credit: null, debit: 5000.0 },
+  { date: '2026-03-19', entityName: 'Kishan Enterprise | ICICI', description: 'FASTAG', category: 'Fastag', credit: null, debit: 20000.0 },
+  { date: '2026-03-19', entityName: 'Kishan Enterprise | ICICI', description: 'SKYWIN ENTERPRISES', category: 'Purchase Payment', credit: null, debit: 200000.0 },
+  { date: '2026-03-19', entityName: 'Kishan Enterprise | ICICI', description: 'CHASSIS CUTTING', category: 'Other', credit: null, debit: 15000.0 },
+  { date: '2026-03-19', entityName: 'Kishan Enterprise | ICICI', description: 'R S ENTERPRISES', category: 'Sales payment', credit: null, debit: 32438.0 },
+  { date: '2026-03-20', entityName: 'Fremi Carting | Saraswat Bank', description: 'FASTAG', category: 'Fastag', credit: null, debit: 10000.0 },
+  { date: '2026-03-20', entityName: 'Fremi Carting | Saraswat Bank', description: 'RIVER CASH', category: 'Sales payment', credit: 3200.0, debit: null },
+  { date: '2026-03-20', entityName: 'Fremi Carting | Saraswat Bank', description: 'RIVER CASH', category: 'Sales payment', credit: 4000.0, debit: null },
+  { date: '2026-03-20', entityName: 'Yaksh Carting | HDFC', description: '3638 silak', category: 'Silak', credit: null, debit: 2000.0 },
+  { date: '2026-03-20', entityName: 'Yaksh Carting | HDFC', description: 'KATARIYA BHARAT BENZ', category: 'Purchase Payment', credit: null, debit: 841.0 },
+  { date: '2026-03-20', entityName: 'Yaksh Carting | HDFC', description: 'kishan enterprise', category: 'Transfer', credit: 50000.0, debit: null },
+  { date: '2026-03-20', entityName: 'Yaksh Carting | HDFC', description: 'RAKESH PIDILITE TALOJA', category: 'PIDILITE UNLOADING CHARGE#', credit: null, debit: 8000.0 },
+  { date: '2026-03-20', entityName: 'Yaksh Carting | HDFC', description: '8968 TYRE PANCHAR', category: 'Other', credit: null, debit: 1250.0 },
+  { date: '2026-03-19', entityName: 'Kishan Enterprise | ICICI', description: 'EMI', category: 'Loan Repayment', credit: null, debit: 68008.0 },
+  { date: '2026-03-20', entityName: 'Kishan Enterprise | ICICI', description: 'B M INDUSTRIES', category: 'Sales payment', credit: 77910.0, debit: null },
+  { date: '2026-03-20', entityName: 'Kishan Enterprise | ICICI', description: 'PIDILITE', category: 'Sales payment', credit: 237305.0, debit: null },
+  { date: '2026-03-20', entityName: 'Kishan Enterprise | ICICI', description: 'MAGICRETE', category: 'Sales payment', credit: 148871.0, debit: null },
+  { date: '2026-03-20', entityName: 'Kishan Enterprise | ICICI', description: 'LOAN EMI', category: 'Loan Repayment', credit: null, debit: 46744.0 },
+  { date: '2026-03-20', entityName: 'Kishan Enterprise | ICICI', description: 'LOAN EMI', category: 'Loan Repayment', credit: null, debit: 46744.0 },
+  { date: '2026-03-20', entityName: 'Kishan Enterprise | ICICI', description: 'LOAN EMI', category: 'Loan Repayment', credit: null, debit: 46744.0 },
+  { date: '2026-03-20', entityName: 'Kishan Enterprise | ICICI', description: 'LOAN EMI', category: 'Loan Repayment', credit: null, debit: 58300.0 },
+  { date: '2026-03-20', entityName: 'Kishan Enterprise | ICICI', description: 'LOAN EMI', category: 'Loan Repayment', credit: null, debit: 58300.0 },
+  { date: '2026-03-20', entityName: 'Kishan Enterprise | ICICI', description: 'LOAN EMI', category: 'Loan Repayment', credit: null, debit: 7493.0 },
+  { date: '2026-03-20', entityName: 'Kishan Enterprise | ICICI', description: 'LOAN EMI', category: 'Loan Repayment', credit: null, debit: 7493.0 },
+  { date: '2026-03-20', entityName: 'Kishan Enterprise | ICICI', description: 'LOAN EMI', category: 'Loan Repayment', credit: null, debit: 66622.0 },
+  { date: '2026-03-20', entityName: 'Kishan Enterprise | ICICI', description: 'LOAN EMI', category: 'Loan Repayment', credit: null, debit: 66622.0 },
+  { date: '2026-03-20', entityName: 'Kishan Enterprise | ICICI', description: 'LOAN EMI', category: 'Loan Repayment', credit: null, debit: 24575.0 },
+  { date: '2026-03-20', entityName: 'Kishan Enterprise | ICICI', description: 'NANDLAL BHAI ROYALTY PATE', category: 'Sales payment', credit: null, debit: 200000.0 },
+  { date: '2026-03-20', entityName: 'Kishan Enterprise | ICICI', description: 'VAREDIYA LIGHT BILL', category: 'LIGHTBILL', credit: null, debit: 58776.0 },
+  { date: '2026-03-20', entityName: 'Kishan Enterprise | ICICI', description: 'YAKSH CARTING', category: 'Transfer', credit: null, debit: 50000.0 },
+  { date: '2026-03-20', entityName: 'Kishan Enterprise | ICICI', description: 'SONAM ELECTRICAL', category: 'Purchase Payment', credit: null, debit: 14750.0 },
+  { date: '2026-03-20', entityName: 'Kishan Enterprise | ICICI', description: '4342 SILAK', category: 'Silak', credit: null, debit: 2000.0 },
+  { date: '2026-03-20', entityName: 'Kishan Enterprise | ICICI', description: '4281 KULDEEP', category: 'Silak', credit: null, debit: 5000.0 },
+  { date: '2026-03-20', entityName: 'Kishan Enterprise | ICICI', description: '2722 VIPIN', category: 'Salary', credit: null, debit: 18000.0 },
+  { date: '2026-03-20', entityName: 'Kishan Enterprise | ICICI', description: '2258 AMIT', category: 'Driver', credit: null, debit: 10000.0 },
+  { date: '2026-03-20', entityName: 'Kishan Enterprise | ICICI', description: '3815 SAURBH', category: 'Driver', credit: null, debit: 10000.0 },
+  { date: '2026-03-20', entityName: 'Kishan Enterprise | ICICI', description: 'HITECH PROJECTS', category: 'Sales payment', credit: 33484.0, debit: null },
+  { date: '2026-03-20', entityName: 'Kishan Enterprise | ICICI', description: 'HITECH PROJECTS', category: 'Sales payment', credit: 525471.0, debit: null },
+  { date: '2026-03-20', entityName: 'Kishan Enterprise | ICICI', description: 'HITECH PROJECTS', category: 'Sales payment', credit: 460857.0, debit: null },
+  { date: '2026-03-20', entityName: 'Kishan Enterprise | ICICI', description: 'GEETA MARKETING COMPANY', category: 'Sales payment', credit: 106060.0, debit: null },
+  { date: '2026-03-20', entityName: 'Kishan Enterprise | ICICI', description: 'PRUTHVI PETROLEUM', category: 'Diesel', credit: null, debit: 400000.0 },
+  { date: '2026-03-21', entityName: 'Kishan Enterprise | ICICI', description: 'HITECH RMC PROJECTS', category: 'Sales payment', credit: 94244.0, debit: null },
+  { date: '2026-03-21', entityName: 'Kishan Enterprise | ICICI', description: 'MARUTI ENTERPRISE', category: 'Sales payment', credit: 51133.0, debit: null },
+  { date: '2026-03-21', entityName: 'Kishan Enterprise | ICICI', description: 'DIESEL', category: 'Diesel', credit: null, debit: 14000.0 },
+  { date: '2026-03-21', entityName: 'Kishan Enterprise | ICICI', description: '2868 MOHIT SILAK', category: 'Silak', credit: null, debit: 2000.0 },
+  { date: '2026-03-21', entityName: 'Kishan Enterprise | ICICI', description: 'KRISHNA MOTORS', category: 'Purchase Payment', credit: null, debit: 130050.0 },
+  { date: '2026-03-21', entityName: 'Kishan Enterprise | ICICI', description: 'NEW BHARAT ELECTRICALS', category: 'Purchase Payment', credit: null, debit: 100000.0 },
+  { date: '2026-03-21', entityName: 'Kishan Enterprise | ICICI', description: 'ACC LIMITED', category: 'Purchase Payment', credit: null, debit: 434100.0 },
+  { date: '2026-03-21', entityName: 'Kishan Enterprise | ICICI', description: '7979 ANKUSH 3651 MITHAILAL', category: 'Silak', credit: null, debit: 4000.0 },
+  { date: '2026-03-20', entityName: 'Shree Developer | Varachha Bank', description: 'TEA', category: 'Other', credit: null, debit: 20.0 },
+  { date: '2026-03-21', entityName: 'Shree Developer | Varachha Bank', description: 'MEDICINE', category: 'Other', credit: null, debit: 2033.0 },
+  { date: '2026-03-20', entityName: 'Fremi Carting | Saraswat Bank', description: 'FASTAG 7311', category: 'Fastag', credit: null, debit: 1000.0 },
+  { date: '2026-03-21', entityName: 'Fremi Carting | Saraswat Bank', description: 'FASTAG', category: 'Fastag', credit: null, debit: 10000.0 },
+  { date: '2026-03-21', entityName: 'Fremi Carting | Saraswat Bank', description: 'GENIYO DIESEL', category: 'Diesel', credit: null, debit: 1000.0 },
+  { date: '2026-03-20', entityName: 'Yaksh Carting | HDFC', description: 'NADEEM WIREMEN HOTEL RELIEF', category: 'Other', credit: null, debit: 1550.0 },
+  { date: '2026-03-21', entityName: 'Yaksh Carting | HDFC', description: 'FASTAG', category: 'Fastag', credit: null, debit: 2000.0 },
+  { date: '2026-03-21', entityName: 'Yaksh Carting | HDFC', description: 'FASTAG', category: 'Fastag', credit: null, debit: 10000.0 },
+  { date: '2026-03-22', entityName: 'Kishan Enterprise | ICICI', description: 'SHREE KRUPA ENTERPRISES', category: 'Sales payment', credit: 295885.0, debit: null },
+  { date: '2026-03-22', entityName: 'Kishan Enterprise | ICICI', description: 'LOAN EMI', category: 'Loan Repayment', credit: null, debit: 74770.0 },
+  { date: '2026-03-22', entityName: 'Kishan Enterprise | ICICI', description: 'LOAN EMI', category: 'Loan Repayment', credit: null, debit: 74770.0 },
+  { date: '2026-03-22', entityName: 'Kishan Enterprise | ICICI', description: 'LOAN EMI', category: 'Loan Repayment', credit: null, debit: 67285.0 },
+  { date: '2026-03-22', entityName: 'Kishan Enterprise | ICICI', description: 'LOAN EMI', category: 'Loan Repayment', credit: null, debit: 67285.0 },
+  { date: '2026-03-22', entityName: 'Kishan Enterprise | ICICI', description: 'LOAN EMI', category: 'Loan Repayment', credit: null, debit: 68067.0 },
+  { date: '2026-03-22', entityName: 'Kishan Enterprise | ICICI', description: 'LOAN EMI', category: 'Loan Repayment', credit: null, debit: 68067.0 },
+  { date: '2026-03-22', entityName: 'Kishan Enterprise | ICICI', description: 'LOAN EMI', category: 'Loan Repayment', credit: null, debit: 68067.0 },
+  { date: '2026-03-22', entityName: 'Kishan Enterprise | ICICI', description: 'LOAN EMI', category: 'Loan Repayment', credit: null, debit: 7444.0 },
+  { date: '2026-03-22', entityName: 'Kishan Enterprise | ICICI', description: 'LOAN EMI', category: 'Loan Repayment', credit: null, debit: 7444.0 },
+  { date: '2026-03-22', entityName: 'Kishan Enterprise | ICICI', description: 'LOAN EMI', category: 'Loan Repayment', credit: null, debit: 7444.0 },
+  { date: '2026-03-22', entityName: 'Kishan Enterprise | ICICI', description: 'FREMI CARTING', category: 'Transfer', credit: null, debit: 50000.0 },
+  { date: '2026-03-22', entityName: 'Kishan Enterprise | ICICI', description: 'SHRADDHA AUTO  BODYLINE', category: 'Purchase Payment', credit: null, debit: 7750.0 },
+  { date: '2026-03-22', entityName: 'Kishan Enterprise | ICICI', description: '3424 AND 7311', category: 'Silak', credit: null, debit: 4000.0 },
+  { date: '2026-03-23', entityName: 'Kishan Enterprise | ICICI', description: 'NANDLAL BHAI ROYALTY PATE', category: 'Purchase Payment', credit: null, debit: 150000.0 },
+  { date: '2026-03-23', entityName: 'Kishan Enterprise | ICICI', description: 'KRISHNA ELECTRICALS', category: 'Purchase Payment', credit: null, debit: 2242.0 },
+  { date: '2026-03-23', entityName: 'Kishan Enterprise | ICICI', description: 'UMESH BHAI', category: 'Salary', credit: null, debit: 8000.0 },
+  { date: '2026-03-23', entityName: 'Kishan Enterprise | ICICI', description: '9454 MAHAKAL SILAK', category: 'Silak', credit: null, debit: 2000.0 },
+  { date: '2026-03-23', entityName: 'Kishan Enterprise | ICICI', description: '2722 VIPIN SILAK', category: 'Silak', credit: null, debit: 5000.0 },
+  { date: '2026-03-23', entityName: 'Kishan Enterprise | ICICI', description: '2720 RAJA SILAK', category: 'Silak', credit: null, debit: 5000.0 },
+  { date: '2026-03-23', entityName: 'Kishan Enterprise | ICICI', description: '7979 ANIL SILAK', category: 'Silak', credit: null, debit: 2000.0 },
+  { date: '2026-03-23', entityName: 'Kishan Enterprise | ICICI', description: '4528 AVINASH SILAK AND HISAB', category: 'Silak', credit: null, debit: 25680.0 },
+  { date: '2026-03-23', entityName: 'Kishan Enterprise | ICICI', description: '7474 MONU SILAK', category: 'Silak', credit: null, debit: 2000.0 },
+  { date: '2026-03-23', entityName: 'Kishan Enterprise | ICICI', description: '8686  VEERENDRA SILAK', category: 'Silak', credit: null, debit: 2000.0 },
+  { date: '2026-03-23', entityName: 'Kishan Enterprise | ICICI', description: '7311 NARSHINGH SALARY', category: 'Salary', credit: null, debit: 15000.0 },
+  { date: '2026-03-23', entityName: 'Kishan Enterprise | ICICI', description: 'AAJMARKETING GPS', category: 'Purchase Payment', credit: null, debit: 50000.0 },
+  { date: '2026-03-22', entityName: 'Fremi Carting | Saraswat Bank', description: 'kishan enterprise', category: 'Transfer', credit: 50000.0, debit: null },
+  { date: '2026-03-22', entityName: 'Fremi Carting | Saraswat Bank', description: 'YAKSH CARTING', category: 'Transfer', credit: 10000.0, debit: null },
+  { date: '2026-03-22', entityName: 'Fremi Carting | Saraswat Bank', description: 'FASTAG', category: 'Fastag', credit: null, debit: 10000.0 },
+  { date: '2026-03-22', entityName: 'Fremi Carting | Saraswat Bank', description: 'FASTAG', category: 'Fastag', credit: null, debit: 10000.0 },
+  { date: '2026-03-22', entityName: 'Fremi Carting | Saraswat Bank', description: 'FASTAG', category: 'Fastag', credit: null, debit: 3000.0 },
+  { date: '2026-03-22', entityName: 'Yaksh Carting | HDFC', description: 'FREMI CARTING', category: 'Transfer', credit: null, debit: 10000.0 },
+  { date: '2026-03-22', entityName: 'Yaksh Carting | HDFC', description: 'CASH WITHDRAWAL', category: 'Petty Cash', credit: null, debit: 5000.0 },
+  { date: '2026-03-22', entityName: 'Yaksh Carting | HDFC', description: 'VEGETABLES BUY', category: 'Purchase Payment', credit: null, debit: 1790.0 },
+  { date: '2026-03-23', entityName: 'Yaksh Carting | HDFC', description: 'PETROL', category: 'Other', credit: null, debit: 200.0 },
+  { date: '2026-03-23', entityName: 'Kishan Enterprise | ICICI', description: 'PRUTHVI PETROLEUM', category: 'Diesel', credit: null, debit: 500000.0 },
+  { date: '2026-03-24', entityName: 'Kishan Enterprise | ICICI', description: 'SHREE KRUPA ENTERPRISES', category: 'Sales payment', credit: 145435.0, debit: null },
+  { date: '2026-03-24', entityName: 'Kishan Enterprise | ICICI', description: 'EARTH ENTERPRISE', category: 'Sales payment', credit: 32000.0, debit: null },
+  { date: '2026-03-24', entityName: 'Kishan Enterprise | ICICI', description: 'VVKS DEVELOPERS', category: 'Sales payment', credit: 155465.0, debit: null },
+  { date: '2026-03-24', entityName: 'Kishan Enterprise | ICICI', description: 'KASHAF GLOBAL', category: 'Sales payment', credit: 53914.0, debit: null },
+  { date: '2026-03-24', entityName: 'Kishan Enterprise | ICICI', description: 'NEW VIDHYA ENTERPRISE ULEWE', category: 'Sales payment', credit: 100000.0, debit: null },
+  { date: '2026-03-24', entityName: 'Kishan Enterprise | ICICI', description: 'CIBELA BUILDCON UUCHINA RETURN', category: 'Transfer', credit: 1000000.0, debit: null },
+  { date: '2026-03-24', entityName: 'Kishan Enterprise | ICICI', description: 'FASTAG', category: 'Fastag', credit: null, debit: 20000.0 },
+  { date: '2026-03-24', entityName: 'Kishan Enterprise | ICICI', description: 'NANDLAL BHAI ROYALTY PATE', category: 'Purchase Payment', credit: null, debit: 100000.0 },
+  { date: '2026-03-24', entityName: 'Kishan Enterprise | ICICI', description: 'RS ENTERPRISE', category: 'Purchase Payment', credit: null, debit: 52991.0 },
+  { date: '2026-03-24', entityName: 'Kishan Enterprise | ICICI', description: 'HITACHI DRIVER', category: 'Salary', credit: null, debit: 13500.0 },
+  { date: '2026-03-24', entityName: 'Kishan Enterprise | ICICI', description: '8968 JANAK SILAK', category: 'Silak', credit: null, debit: 2000.0 },
+  { date: '2026-03-24', entityName: 'Kishan Enterprise | ICICI', description: 'ASHAPURACOMPANI POWDER', category: 'Purchase Payment', credit: null, debit: 28084.0 },
+  { date: '2026-03-24', entityName: 'Kishan Enterprise | ICICI', description: 'DHRUV MOTORS', category: 'Purchase Payment', credit: null, debit: 2223.0 },
+  { date: '2026-03-24', entityName: 'Kishan Enterprise | ICICI', description: 'PATEL CHEMICALS', category: 'Purchase Payment', credit: null, debit: 200000.0 },
+  { date: '2026-03-24', entityName: 'Kishan Enterprise | ICICI', description: 'SHREE RANG ENT BHAVIN BHAI LEAZ', category: 'Purchase Payment', credit: null, debit: 100000.0 },
+  { date: '2026-03-24', entityName: 'Kishan Enterprise | ICICI', description: 'PRUTHVI PETROLEUM', category: 'Diesel', credit: null, debit: 500000.0 },
+  { date: '2026-03-24', entityName: 'Kishan Enterprise | ICICI', description: 'RESU BHURIYA', category: 'Stock Labour', credit: null, debit: 2000.0 },
+  { date: '2026-03-24', entityName: 'Kishan Enterprise | ICICI', description: 'SANJAY STOCK', category: 'Other', credit: null, debit: 5000.0 },
+  { date: '2026-03-24', entityName: 'Kishan Enterprise | ICICI', description: 'MOHIT 2868 BIJENDAR 3638 SILAK', category: 'Silak', credit: null, debit: 4000.0 },
+  { date: '2026-03-24', entityName: 'Kishan Enterprise | ICICI', description: 'VIPUL LEASE', category: 'Salary', credit: null, debit: 29490.0 },
+  { date: '2026-03-24', entityName: 'Kishan Enterprise | ICICI', description: 'PIDILITE', category: 'Sales payment', credit: 538268.0, debit: null },
+  { date: '2026-03-24', entityName: 'Kishan Enterprise | ICICI', description: 'WESTINDIAEQUIPMENT', category: 'Sales payment', credit: null, debit: 25420.0 },
+  { date: '2026-03-23', entityName: 'Fremi Carting | Saraswat Bank', description: 'SAVLI SAND', category: 'Purchase Payment', credit: null, debit: 12700.0 },
+  { date: '2026-03-23', entityName: 'Fremi Carting | Saraswat Bank', description: 'FREMI NE AHEDABAD', category: 'Other', credit: null, debit: 5000.0 },
+  { date: '2026-03-24', entityName: 'Fremi Carting | Saraswat Bank', description: 'CASH', category: 'Petty Cash', credit: null, debit: 2000.0 },
+  { date: '2026-03-23', entityName: 'Yaksh Carting | HDFC', description: 'SONU VAREDIYA', category: 'Stock Labour', credit: null, debit: 1000.0 },
+  { date: '2026-03-23', entityName: 'Yaksh Carting | HDFC', description: 'BHAJIYA', category: 'Other', credit: null, debit: 290.0 },
+  { date: '2026-03-23', entityName: 'Yaksh Carting | HDFC', description: 'SAVLI SAND', category: 'Purchase Payment', credit: null, debit: 12700.0 },
+  { date: '2026-03-23', entityName: 'Yaksh Carting | HDFC', description: 'SAVLI SAND RETURN', category: 'Other', credit: 12700.0, debit: null },
+  { date: '2026-03-24', entityName: 'Yaksh Carting | HDFC', description: 'OTHER', category: 'Other', credit: null, debit: 40.0 },
+  { date: '2026-03-24', entityName: 'Yaksh Carting | HDFC', description: '3815 SILAK', category: 'Silak', credit: null, debit: 1000.0 },
+  { date: '2026-03-24', entityName: 'Yaksh Carting | HDFC', description: 'NASTO', category: 'Other', credit: null, debit: 75.0 },
+  { date: '2026-03-24', entityName: 'Yaksh Carting | HDFC', description: 'RAKESH PIDILITE', category: 'PIDILITE UNLOADING CHARGE#', credit: null, debit: 8000.0 },
+  { date: '2026-03-24', entityName: 'Yaksh Carting | HDFC', description: '3815 PUC', category: 'Other', credit: null, debit: 150.0 },
+  { date: '2026-03-24', entityName: 'Fremi Carting | Saraswat Bank', description: 'FASTAG', category: 'Fastag', credit: null, debit: 10000.0 },
+  { date: '2026-03-24', entityName: 'Yaksh Carting | HDFC', description: 'PUC', category: 'Other', credit: null, debit: 150.0 },
+  { date: '2026-03-24', entityName: 'Yaksh Carting | HDFC', description: 'NASTO', category: 'Other', credit: null, debit: 120.0 },
+  { date: '2026-03-24', entityName: 'Yaksh Carting | HDFC', description: 'FASTAG', category: 'Fastag', credit: null, debit: 5000.0 },
+  { date: '2026-03-25', entityName: 'Kishan Enterprise | ICICI', description: 'CIBELA BUILDCON UUCHINA RETURN', category: 'Transfer', credit: 1000000.0, debit: null },
+  { date: '2026-03-25', entityName: 'Kishan Enterprise | ICICI', description: 'LEOLI SR INDIA', category: 'Sales payment', credit: 400000.0, debit: null },
+  { date: '2026-03-25', entityName: 'Kishan Enterprise | ICICI', description: 'NANDLAL BHAI ROYALTY PATE', category: 'Purchase Payment', credit: null, debit: 200000.0 },
+  { date: '2026-03-25', entityName: 'Kishan Enterprise | ICICI', description: '4281 DIESEL', category: 'Diesel', credit: null, debit: 5000.0 },
+  { date: '2026-03-25', entityName: 'Kishan Enterprise | ICICI', description: '4281 SILAK', category: 'Silak', credit: null, debit: 5000.0 },
+  { date: '2026-03-25', entityName: 'Kishan Enterprise | ICICI', description: '2720 RAJA', category: 'Silak', credit: null, debit: 5000.0 },
+  { date: '2026-03-25', entityName: 'Kishan Enterprise | ICICI', description: '3651 MITHAILAL', category: 'Silak', credit: null, debit: 5000.0 },
+  { date: '2026-03-25', entityName: 'Kishan Enterprise | ICICI', description: '3424 SANDEEP', category: 'Silak', credit: null, debit: 2000.0 },
+  { date: '2026-03-25', entityName: 'Kishan Enterprise | ICICI', description: 'AIRA AIRMAX ENGINEERS', category: 'Purchase Payment', credit: null, debit: 27730.0 },
+  { date: '2026-03-25', entityName: 'Kishan Enterprise | ICICI', description: 'AIRMAX HYDINT CONTROLS', category: 'Purchase Payment', credit: null, debit: 10030.0 },
+  { date: '2026-03-25', entityName: 'Kishan Enterprise | ICICI', description: '7474 MONU', category: 'Silak', credit: null, debit: 2000.0 },
+  { date: '2026-03-25', entityName: 'Kishan Enterprise | ICICI', description: 'NANDLAL BHAI ROYALTY PATE', category: 'Purchase Payment', credit: null, debit: 300000.0 },
+  { date: '2026-03-26', entityName: 'Fremi Carting | Saraswat Bank', description: 'FASTAG', category: 'Fastag', credit: null, debit: 10000.0 },
+  { date: '2026-03-26', entityName: 'Fremi Carting | Saraswat Bank', description: 'kishan enterprise', category: 'Transfer', credit: 50000.0, debit: null },
+  { date: '2026-03-26', entityName: 'Fremi Carting | Saraswat Bank', description: 'FASTAG', category: 'Fastag', credit: null, debit: 10000.0 },
+  { date: '2026-03-23', entityName: 'Shree Developer | Varachha Bank', description: 'FASTAG', category: 'Fastag', credit: null, debit: 8000.0 },
+  { date: '2026-03-25', entityName: 'Shree Developer | Varachha Bank', description: 'DIESEL', category: 'Diesel', credit: null, debit: 2500.0 },
+  { date: '2026-03-25', entityName: 'Kishan Enterprise | ICICI', description: '4528 DIESEL', category: 'Diesel', credit: null, debit: 7000.0 },
+  { date: '2026-03-26', entityName: 'Kishan Enterprise | ICICI', description: 'BHARAT SILICA WORKS', category: 'Sales payment', credit: 300000.0, debit: null },
+  { date: '2026-03-26', entityName: 'Kishan Enterprise | ICICI', description: 'BHARAT SILICA WORKS', category: 'Sales payment', credit: 122187.0, debit: null },
+  { date: '2026-03-26', entityName: 'Kishan Enterprise | ICICI', description: 'SKYWIN ENTERPRISES', category: 'Purchase Payment', credit: null, debit: 300000.0 },
+  { date: '2026-03-26', entityName: 'Kishan Enterprise | ICICI', description: 'HARIDARSHANENGINEERING', category: 'Purchase Payment', credit: null, debit: 10932.0 },
+  { date: '2026-03-26', entityName: 'Kishan Enterprise | ICICI', description: 'RESU BHURIYA', category: 'Stock Labour', credit: null, debit: 10000.0 },
+  { date: '2026-03-26', entityName: 'Kishan Enterprise | ICICI', description: '9454 MAHAKAL', category: 'Silak', credit: null, debit: 2000.0 },
+  { date: '2026-03-26', entityName: 'Kishan Enterprise | ICICI', description: '7311 NARSHINGH', category: 'Silak', credit: null, debit: 2000.0 },
+  { date: '2026-03-26', entityName: 'Kishan Enterprise | ICICI', description: '8686 VEERENDRA', category: 'Silak', credit: null, debit: 2000.0 },
+  { date: '2026-03-26', entityName: 'Kishan Enterprise | ICICI', description: '7979 ANIL KUMAR', category: 'Silak', credit: null, debit: 2000.0 },
+  { date: '2026-03-26', entityName: 'Kishan Enterprise | ICICI', description: '3815 KANA GURJAR', category: 'Silak', credit: null, debit: 2000.0 },
+  { date: '2026-03-26', entityName: 'Kishan Enterprise | ICICI', description: 'YAKSH CARTING', category: 'Transfer', credit: null, debit: 50000.0 },
+  { date: '2026-03-26', entityName: 'Kishan Enterprise | ICICI', description: 'FREMI CARTING', category: 'Transfer', credit: null, debit: 50000.0 },
+  { date: '2026-03-26', entityName: 'Yaksh Carting | HDFC', description: 'BHARUCH HOTEL', category: 'Other', credit: null, debit: 430.0 },
+  { date: '2026-03-26', entityName: 'Yaksh Carting | HDFC', description: 'REILEF HOTEL', category: 'Other', credit: null, debit: 350.0 },
+  { date: '2026-03-26', entityName: 'Yaksh Carting | HDFC', description: 'KISHAN ENTERPRISE', category: 'Transfer', credit: 50000.0, debit: null },
+  { date: '2026-03-26', entityName: 'Shree Developer | HDFC', description: 'TEA', category: 'Other', credit: null, debit: 20.0 },
+  { date: '2026-03-26', entityName: 'Shree Developer | HDFC', description: 'OTHER', category: 'Other', credit: null, debit: 100.0 },
+  { date: '2026-03-26', entityName: 'Shree Developer | HDFC', description: 'OTHER', category: 'Other', credit: null, debit: 50.0 },
+  { date: '2026-03-26', entityName: 'Shree Developer | HDFC', description: 'EYE GLASS', category: 'Other', credit: null, debit: 5000.0 },
+  { date: '2026-03-27', entityName: 'Shree Developer | HDFC', description: 'HAIR CUT', category: 'Other', credit: null, debit: 150.0 },
+  { date: '2026-03-27', entityName: 'Fremi Carting | Saraswat Bank', description: 'VAGETABLES BUY', category: 'Other', credit: null, debit: 1400.0 },
+  { date: '2026-03-27', entityName: 'Fremi Carting | Saraswat Bank', description: 'TRF TO CASH', category: 'Petty Cash', credit: null, debit: 1500.0 },
+  { date: '2026-03-26', entityName: 'Yaksh Carting | HDFC', description: 'FASTAG', category: 'Fastag', credit: null, debit: 10000.0 },
+  { date: '2026-03-27', entityName: 'Yaksh Carting | HDFC', description: 'SAVLI SAND', category: 'Purchase Payment', credit: null, debit: 12700.0 },
+  { date: '2026-03-26', entityName: 'Kishan Enterprise | ICICI', description: 'WALPLAST VAPI', category: 'Sales payment', credit: 298395.0, debit: null },
+  { date: '2026-03-26', entityName: 'Kishan Enterprise | ICICI', description: '2258 - AMIT', category: 'Silak', credit: null, debit: 2000.0 },
+  { date: '2026-03-26', entityName: 'Kishan Enterprise | ICICI', description: 'LIGHTBILL', category: 'LIGHTBILL', credit: null, debit: 112228.56 },
+  { date: '2026-03-26', entityName: 'Kishan Enterprise | ICICI', description: 'KATARIYA BHARAT BENZ', category: 'Purchase Payment', credit: null, debit: 2254.0 },
+  { date: '2026-03-26', entityName: 'Kishan Enterprise | ICICI', description: 'FASTAG', category: 'Fastag', credit: null, debit: 20000.0 },
+  { date: '2026-03-27', entityName: 'Kishan Enterprise | ICICI', description: 'SHREE KRUPA ENTERPRISES', category: 'Sales payment', credit: 145435.0, debit: null },
+  { date: '2026-03-27', entityName: 'Kishan Enterprise | ICICI', description: 'SHIV SHAKTI TRANSPORT', category: 'Sales payment', credit: 197500.0, debit: null },
+  { date: '2026-03-27', entityName: 'Kishan Enterprise | ICICI', description: 'REVACON BUILDTECH PRIVATE LIMITED', category: 'Sales payment', credit: 553080.0, debit: null },
+  { date: '2026-03-27', entityName: 'Kishan Enterprise | ICICI', description: 'NANDLAL BHAI ROYALTY RCM FEB', category: 'Purchase Payment', credit: null, debit: 95872.0 },
+  { date: '2026-03-27', entityName: 'Kishan Enterprise | ICICI', description: 'ATMIYAISPAT', category: 'Purchase Payment', credit: null, debit: 100000.0 },
+  { date: '2026-03-27', entityName: 'Kishan Enterprise | ICICI', description: 'DWARKADHISH ENTERPRISES', category: 'Purchase Payment', credit: null, debit: 200000.0 },
+  { date: '2026-03-27', entityName: 'Kishan Enterprise | ICICI', description: 'STATIONERY OFFICE MATE', category: 'Purchase Payment', credit: null, debit: 1620.0 },
+  { date: '2026-03-27', entityName: 'Kishan Enterprise | ICICI', description: '3638 BRIJENDRA', category: 'Silak', credit: null, debit: 2000.0 },
+  { date: '2026-03-27', entityName: 'Kishan Enterprise | ICICI', description: 'SAI SAMARTH POLYTEX BAG', category: 'Purchase Payment', credit: null, debit: 600000.0 },
+  { date: '2026-03-27', entityName: 'Kishan Enterprise | ICICI', description: '2722 VIPIN HISAB', category: 'Silak', credit: null, debit: 11730.0 },
+  { date: '2026-03-27', entityName: 'Kishan Enterprise | ICICI', description: '8968 JANAK', category: 'Silak', credit: null, debit: 2000.0 },
+  { date: '2026-03-27', entityName: 'Yaksh Carting | HDFC', description: 'NASTO', category: 'Other', credit: null, debit: 20.0 },
+  { date: '2026-03-27', entityName: 'Yaksh Carting | HDFC', description: 'NASTO', category: 'Other', credit: null, debit: 100.0 },
+  { date: '2026-03-28', entityName: 'Yaksh Carting | HDFC', description: '3424 FASTAG', category: 'Fastag', credit: null, debit: 1000.0 },
+  { date: '2026-03-27', entityName: 'Shree Developer | Saraswat Bank', description: 'GAUTAM BHAI RAJKOT', category: 'Transfer', credit: 500000.0, debit: null },
+  { date: '2026-03-28', entityName: 'Shree Developer | Saraswat Bank', description: 'KISHAN ENTERPRISE', category: 'Transfer', credit: null, debit: 500000.0 },
+  { date: '2026-03-27', entityName: 'Fremi Carting | Saraswat Bank', description: 'FASTAG', category: 'Fastag', credit: null, debit: 10000.0 },
+  { date: '2026-03-28', entityName: 'Shree Developer | Varachha Bank', description: 'FASTAG', category: 'Fastag', credit: null, debit: 2000.0 },
+  { date: '2026-03-28', entityName: 'Shree Developer | Varachha Bank', description: 'KISHAN ENTERPRISE', category: 'Transfer', credit: 30000.0, debit: null },
+  { date: '2026-03-28', entityName: 'Shree Developer | Varachha Bank', description: 'FASTAG', category: 'Fastag', credit: null, debit: 8000.0 },
+  { date: '2026-03-27', entityName: 'Kishan Enterprise | ICICI', description: 'PIDILITE', category: 'Sales payment', credit: 348388.0, debit: null },
+  { date: '2026-03-28', entityName: 'Kishan Enterprise | ICICI', description: 'SHREE DEVELOPERS', category: 'Transfer', credit: 500000.0, debit: null },
+  { date: '2026-03-28', entityName: 'Kishan Enterprise | ICICI', description: 'HARIKRISHNA ENTERPRISE', category: 'Sales payment', credit: 8673.0, debit: null },
+  { date: '2026-03-28', entityName: 'Kishan Enterprise | ICICI', description: 'SHREE DEVELOPERS VARACHHA', category: 'Transfer', credit: null, debit: 30000.0 },
+  { date: '2026-03-28', entityName: 'Kishan Enterprise | ICICI', description: '4281 DIESEL', category: 'Diesel', credit: null, debit: 7000.0 },
+  { date: '2026-03-28', entityName: 'Kishan Enterprise | ICICI', description: 'NANDLAL BHAI ROYALTY PATE', category: 'Purchase Payment', credit: null, debit: 300000.0 },
+  { date: '2026-03-28', entityName: 'Kishan Enterprise | ICICI', description: 'DINESH MAMA', category: 'Transfer', credit: null, debit: 50000.0 },
+  { date: '2026-03-28', entityName: 'Kishan Enterprise | ICICI', description: 'SAMAY EARTH MOVERS', category: 'Purchase Payment', credit: null, debit: 8300.0 },
+  { date: '2026-03-28', entityName: 'Kishan Enterprise | ICICI', description: '2722 RAHUL', category: 'Silak', credit: null, debit: 5000.0 },
+  { date: '2026-03-28', entityName: 'Kishan Enterprise | ICICI', description: '7474 MONU', category: 'Silak', credit: null, debit: 2000.0 },
+  { date: '2026-03-28', entityName: 'Kishan Enterprise | ICICI', description: '4528 AVINASH SALARY AND SILAK', category: 'Silak', credit: null, debit: 41000.0 },
+  { date: '2026-03-28', entityName: 'Kishan Enterprise | ICICI', description: '2868 MOHIT', category: 'Silak', credit: null, debit: 2000.0 },
+  { date: '2026-03-28', entityName: 'Kishan Enterprise | ICICI', description: '3424 SANDEEP', category: 'Silak', credit: null, debit: 2000.0 },
+  { date: '2026-03-28', entityName: 'Kishan Enterprise | ICICI', description: '3651 MITHAILAL', category: 'Silak', credit: null, debit: 2000.0 },
+  { date: '2026-03-28', entityName: 'Kishan Enterprise | ICICI', description: '2720 RAJA', category: 'Silak', credit: null, debit: 5000.0 },
+  { date: '2026-03-28', entityName: 'Kishan Enterprise | ICICI', description: '4281 KULDEEP', category: 'Silak', credit: null, debit: 5000.0 },
+  { date: '2026-03-28', entityName: 'Kishan Enterprise | ICICI', description: 'PRUTHVI PETROLEUM', category: 'Diesel', credit: null, debit: 500000.0 }
+];
 
-  if (!snapshot.empty) {
-    console.log('Entities already seeded, skipping...');
+export async function runSeedData(): Promise<void> {
+  console.log('Checking if seed needed...');
+
+  const txnRef = collection(db, 'transactions');
+  const countSnap = await getCountFromServer(txnRef);
+  if (countSnap.data().count > 10) {
+    console.log('Transactions already seeded, skipping.');
     return;
   }
 
-  const openingTimestamp = Timestamp.fromDate(OPENING_DATE);
-
-  for (const entity of ENTITIES) {
-    const docRef = doc(entitiesRef);
-    await setDoc(docRef, {
-      id: docRef.id,
-      name: entity.name,
-      bank: entity.bank,
-      openingBalance: entity.openingBalance,
-      openingDate: openingTimestamp,
-      order: entity.order,
+  console.log('Seeding entities...');
+  const entitiesRef = collection(db, 'entities');
+  const entSnap = await getDocs(entitiesRef);
+  if (entSnap.empty) {
+    const entBatch = writeBatch(db);
+    ENTITIES.forEach((entity) => {
+      const ref = doc(entitiesRef);
+      entBatch.set(ref, {
+        name: entity.name,
+        bank: entity.bank,
+        openingBalance: entity.openingBalance,
+        openingDate: Timestamp.fromDate(OPENING_DATE),
+        order: entity.order,
+      });
     });
+    await entBatch.commit();
+    console.log('Entities seeded.');
   }
-  console.log('Entities seeded successfully');
+
+  console.log('Seeding categories...');
+  const catsRef = collection(db, 'categories');
+  const catSnap = await getDocs(catsRef);
+  if (catSnap.empty) {
+    const catBatch = writeBatch(db);
+    CATEGORIES.forEach((cat, i) => {
+      const ref = doc(catsRef);
+      catBatch.set(ref, { name: cat, order: i });
+    });
+    await catBatch.commit();
+    console.log('Categories seeded.');
+  }
+
+  console.log(`Seeding ${TRANSACTIONS_DATA.length} transactions...`);
+  const BATCH_SIZE = 400;
+  for (let i = 0; i < TRANSACTIONS_DATA.length; i += BATCH_SIZE) {
+    const batch = writeBatch(db);
+    const chunk = TRANSACTIONS_DATA.slice(i, i + BATCH_SIZE);
+    chunk.forEach(txn => {
+      const ref = doc(txnRef);
+      const [y, m, d] = txn.date.split('-').map(Number);
+      const dateObj = new Date(y, m - 1, d, 12, 0, 0);
+      batch.set(ref, {
+        date: Timestamp.fromDate(dateObj),
+        entityName: txn.entityName,
+        description: txn.description,
+        category: txn.category,
+        credit: txn.credit,
+        debit: txn.debit,
+        createdBy: 'seed',
+        createdAt: Timestamp.now(),
+        updatedBy: null,
+        updatedAt: null,
+      });
+    });
+    await batch.commit();
+    console.log(`Batch ${Math.floor(i/BATCH_SIZE) + 1} committed (${Math.min(i + BATCH_SIZE, TRANSACTIONS_DATA.length)} / ${TRANSACTIONS_DATA.length})`);
+  }
+  console.log('Seed complete!');
+}
+
+// Legacy functions kept for compatibility
+export async function seedEntities(): Promise<void> {
+  await runSeedData();
 }
 
 export async function seedCategories(): Promise<void> {
-  const categoriesRef = collection(db, 'categories');
-  const snapshot = await getDocs(categoriesRef);
-
-  if (!snapshot.empty) {
-    console.log('Categories already seeded, skipping...');
-    return;
-  }
-
-  for (let i = 0; i < CATEGORIES.length; i++) {
-    const docRef = doc(categoriesRef);
-    await setDoc(docRef, {
-      id: docRef.id,
-      name: CATEGORIES[i],
-      order: i + 1,
-    });
-  }
-  console.log('Categories seeded successfully');
+  // handled by runSeedData
 }
 
 export async function seedSampleTransactions(): Promise<void> {
-  const transactionsRef = collection(db, 'transactions');
-  const snapshot = await getDocs(transactionsRef);
-
-  if (!snapshot.empty) {
-    console.log('Transactions already exist, skipping sample data...');
-    return;
-  }
-
-  const sampleTransactions = [
-    {
-      date: new Date(2026, 2, 7), // March 7
-      entityName: 'Kishan Enterprise | ICICI',
-      description: 'Sales collection from client A',
-      category: 'Sales Receipt',
-      credit: 150000,
-      debit: null,
-    },
-    {
-      date: new Date(2026, 2, 7),
-      entityName: 'Kishan Enterprise | ICICI',
-      description: 'Supplier payment',
-      category: 'Purchase Payment',
-      credit: null,
-      debit: 75000,
-    },
-    {
-      date: new Date(2026, 2, 8),
-      entityName: 'Yaksh Carting | HDFC',
-      description: 'Diesel expense',
-      category: 'Diesel',
-      credit: null,
-      debit: 12000,
-    },
-    {
-      date: new Date(2026, 2, 8),
-      entityName: 'Shree Developer | HDFC',
-      description: 'Property sale receipt',
-      category: 'Sales Receipt',
-      credit: 500000,
-      debit: null,
-    },
-    {
-      date: new Date(2026, 2, 9),
-      entityName: 'Fremi Carting | Saraswat Bank',
-      description: 'Driver salary',
-      category: 'Driver',
-      credit: null,
-      debit: 18000,
-    },
-    {
-      date: new Date(2026, 2, 10),
-      entityName: 'Shree Developer | Saraswat Bank',
-      description: 'Bank charges',
-      category: 'Bank Charges',
-      credit: null,
-      debit: 500,
-    },
-    {
-      date: new Date(2026, 2, 10),
-      entityName: 'Shree Developer | Varachha Bank',
-      description: 'Rental income',
-      category: 'Rent',
-      credit: 45000,
-      debit: null,
-    },
-  ];
-
-  for (const txn of sampleTransactions) {
-    const docRef = doc(transactionsRef);
-    await setDoc(docRef, {
-      id: docRef.id,
-      date: Timestamp.fromDate(txn.date),
-      entityName: txn.entityName,
-      description: txn.description,
-      category: txn.category,
-      credit: txn.credit,
-      debit: txn.debit,
-      createdBy: 'system',
-      createdAt: Timestamp.now(),
-      updatedBy: null,
-      updatedAt: null,
-    });
-  }
-  console.log('Sample transactions seeded successfully');
-}
-
-export async function runSeedData(): Promise<void> {
-  try {
-    await seedEntities();
-    await seedCategories();
-    await seedSampleTransactions();
-    console.log('All seed data initialized successfully');
-  } catch (error) {
-    console.error('Error seeding data:', error);
-    throw error;
-  }
+  await runSeedData();
 }
