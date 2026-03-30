@@ -28,6 +28,8 @@ export default function UserManagement() {
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [removeConfirm, setRemoveConfirm] = useState<string | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
+  const [revokeConfirm, setRevokeConfirm] = useState<string | null>(null);
+  const [revokingId, setRevokingId] = useState<string | null>(null);
 
   const loadUsers = async () => {
     setLoading(true);
@@ -120,6 +122,22 @@ export default function UserManagement() {
       setError('Failed to remove user.');
     } finally {
       setRemovingId(null);
+    }
+  };
+
+  const handleRevoke = async (user: AppUser) => {
+    setRevokingId(user.uid);
+    try {
+      await updateDoc(doc(db, 'users', user.uid), { role: 'pending' });
+      setUsers(prev => prev.map(u => u.uid === user.uid ? { ...u, role: 'pending' as UserRole } : u));
+      setRevokeConfirm(null);
+      setSuccess(`${user.displayName}'s access has been revoked. They will need re-approval.`);
+      setTimeout(() => setSuccess(''), 4000);
+    } catch (err) {
+      console.error('Error revoking user:', err);
+      setError('Failed to revoke user access.');
+    } finally {
+      setRevokingId(null);
     }
   };
 
@@ -330,8 +348,21 @@ export default function UserManagement() {
                       <button onClick={() => setRemoveConfirm(null)} className="flex-1 px-2 py-1 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded text-xs">Cancel</button>
                     </div>
                   </div>
+                ) : revokeConfirm === user.uid ? (
+                  <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-700 rounded-lg p-2 mt-2">
+                    <p className="text-xs text-orange-700 dark:text-orange-300 mb-2">Revoke {user.displayName}'s access?</p>
+                    <div className="flex gap-1">
+                      <button onClick={() => handleRevoke(user)} disabled={revokingId === user.uid} className="flex-1 px-2 py-1 bg-orange-500 hover:bg-orange-600 text-white rounded text-xs disabled:opacity-50">
+                        {revokingId === user.uid ? '...' : 'Confirm'}
+                      </button>
+                      <button onClick={() => setRevokeConfirm(null)} className="flex-1 px-2 py-1 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded text-xs">Cancel</button>
+                    </div>
+                  </div>
                 ) : (
-                  <button onClick={() => setRemoveConfirm(user.uid)} className="mt-1 text-xs text-red-500 dark:text-red-400 hover:underline">Remove User</button>
+                  <div className="flex gap-3 mt-1">
+                    <button onClick={() => setRevokeConfirm(user.uid)} className="text-xs text-orange-500 dark:text-orange-400 hover:underline">Revoke Access</button>
+                    <button onClick={() => setRemoveConfirm(user.uid)} className="text-xs text-red-500 dark:text-red-400 hover:underline">Remove User</button>
+                  </div>
                 )
               )}
             </div>
@@ -349,7 +380,7 @@ export default function UserManagement() {
                 <th className="text-center px-4 py-3 font-semibold">Change Role</th>
                 <th className="text-center px-4 py-3 font-semibold">PIN</th>
                 <th className="text-left px-4 py-3 font-semibold">Last Login</th>
-                <th className="text-center px-4 py-3 font-semibold">Remove</th>
+                <th className="text-center px-4 py-3 font-semibold">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -431,13 +462,29 @@ export default function UserManagement() {
                         </button>
                         <button onClick={() => setRemoveConfirm(null)} className="px-2 py-0.5 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded text-xs">No</button>
                       </div>
+                    ) : revokeConfirm === user.uid ? (
+                      <div className="flex items-center justify-center gap-1 flex-wrap">
+                        <span className="text-xs text-orange-600 dark:text-orange-400">Revoke?</span>
+                        <button onClick={() => handleRevoke(user)} disabled={revokingId === user.uid} className="px-2 py-0.5 bg-orange-500 hover:bg-orange-600 text-white rounded text-xs disabled:opacity-50">
+                          {revokingId === user.uid ? '...' : 'Yes'}
+                        </button>
+                        <button onClick={() => setRevokeConfirm(null)} className="px-2 py-0.5 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded text-xs">No</button>
+                      </div>
                     ) : (
-                      <button
-                        onClick={() => setRemoveConfirm(user.uid)}
-                        className="px-2.5 py-1 text-xs bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-700 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/40 font-medium"
-                      >
-                        Remove
-                      </button>
+                      <div className="flex items-center justify-center gap-1.5">
+                        <button
+                          onClick={() => setRevokeConfirm(user.uid)}
+                          className="px-2.5 py-1 text-xs bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-700 rounded-lg hover:bg-orange-100 dark:hover:bg-orange-900/40 font-medium"
+                        >
+                          Revoke
+                        </button>
+                        <button
+                          onClick={() => setRemoveConfirm(user.uid)}
+                          className="px-2.5 py-1 text-xs bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-700 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/40 font-medium"
+                        >
+                          Remove
+                        </button>
+                      </div>
                     )}
                   </td>
                 </tr>
