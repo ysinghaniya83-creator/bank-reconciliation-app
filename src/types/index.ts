@@ -80,6 +80,7 @@ export interface FilterState {
 }
 
 export interface EMILoan {
+  id?: string;
   truckNo: string;
   make: string;
   model: string;
