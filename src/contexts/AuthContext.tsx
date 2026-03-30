@@ -5,6 +5,7 @@ import {
   getRedirectResult,
   signOut as firebaseSignOut,
   onAuthStateChanged,
+  browserPopupRedirectResolver,
 } from 'firebase/auth';
 import {
   doc,
@@ -13,7 +14,7 @@ import {
   updateDoc,
   Timestamp,
 } from 'firebase/firestore';
-import { auth, db, googleProvider, browserPopupRedirectResolver } from '../lib/firebase';
+import { auth, db, googleProvider } from '../lib/firebase';
 import { AppUser, UserRole } from '../types';
 
 interface AuthContextType {
@@ -33,7 +34,6 @@ export function useAuth(): AuthContextType {
   return context;
 }
 
-// Build a fallback AppUser from Firebase Auth data alone (when Firestore is unavailable)
 function buildFallbackUser(user: User): AppUser {
   const adminEmail = import.meta.env.VITE_ADMIN_EMAIL;
   const role: UserRole = user.email === adminEmail ? 'admin' : 'viewer';
@@ -50,24 +50,19 @@ function buildFallbackUser(user: User): AppUser {
   };
 }
 
-// Try to sync user with Firestore — never throws
 async function syncUserWithFirestore(user: User): Promise<AppUser> {
   try {
     const userRef = doc(db, 'users', user.uid);
     const userSnap = await getDoc(userRef);
-
     if (userSnap.exists()) {
-      // Update lastLogin in background, don't await
       updateDoc(userRef, { lastLogin: Timestamp.now() }).catch(() => {});
       return { ...userSnap.data(), uid: user.uid } as AppUser;
     }
-
-    // New user
     const newUser = buildFallbackUser(user);
     await setDoc(userRef, newUser);
     return newUser;
   } catch (err) {
-    console.warn('Firestore unavailable, using fallback user profile:', err);
+    console.warn('Firestore sync failed, using auth profile:', err);
     return buildFallbackUser(user);
   }
 }
@@ -84,30 +79,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    // Handle the result of signInWithRedirect when the page reloads after OAuth
-    getRedirectResult(auth, browserPopupRedirectResolver).catch(() => {});
+    let authUnsubscribe: (() => void) | null = null;
 
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setCurrentUser(user);
-      if (user) {
-        const appUserData = await syncUserWithFirestore(user);
-        setAppUser(appUserData);
-      } else {
-        setAppUser(null);
+    const initialize = async () => {
+      // MUST await this before subscribing to onAuthStateChanged.
+      // Without it, onAuthStateChanged fires with null immediately (before
+      // Firebase processes the redirect credentials), causing a flash to the
+      // login page even though auth succeeded.
+      try {
+        await getRedirectResult(auth, browserPopupRedirectResolver);
+      } catch {
+        // No pending redirect or benign error — continue normally
       }
-      setLoading(false);
-    });
 
-    return unsubscribe;
+      authUnsubscribe = onAuthStateChanged(auth, async (user) => {
+        if (user) {
+          const appUserData = await syncUserWithFirestore(user);
+          setCurrentUser(user);
+          setAppUser(appUserData);
+        } else {
+          setCurrentUser(null);
+          setAppUser(null);
+        }
+        setLoading(false);
+      });
+    };
+
+    initialize();
+
+    return () => {
+      authUnsubscribe?.();
+    };
   }, []);
 
   const signInWithGoogle = async () => {
     await signInWithRedirect(auth, googleProvider, browserPopupRedirectResolver);
-    // Page will redirect to Google, then back. onAuthStateChanged handles the rest.
   };
 
   const signOut = async () => {
     await firebaseSignOut(auth);
+    setCurrentUser(null);
     setAppUser(null);
   };
 
