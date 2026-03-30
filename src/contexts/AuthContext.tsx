@@ -12,10 +12,6 @@ import {
   setDoc,
   updateDoc,
   Timestamp,
-  collection,
-  getDocs,
-  query,
-  limit,
 } from 'firebase/firestore';
 import { auth, db, googleProvider } from '../lib/firebase';
 import { AppUser, UserRole } from '../types';
@@ -39,35 +35,18 @@ export function useAuth(): AuthContextType {
   return context;
 }
 
-async function isFirstUser(): Promise<boolean> {
-  const usersRef = collection(db, 'users');
-  const q = query(usersRef, limit(1));
-  const snapshot = await getDocs(q);
-  return snapshot.empty;
-}
-
 async function getOrCreateUser(user: User): Promise<AppUser> {
   const userRef = doc(db, 'users', user.uid);
   const userSnap = await getDoc(userRef);
 
   if (userSnap.exists()) {
-    // Update last login
     await updateDoc(userRef, { lastLogin: Timestamp.now() });
     return { ...userSnap.data(), uid: user.uid } as AppUser;
   }
 
-  // Determine role
+  // New user — role determined solely by admin email env var
   const adminEmail = import.meta.env.VITE_ADMIN_EMAIL;
-  let role: UserRole = 'viewer';
-
-  if (user.email === adminEmail) {
-    role = 'admin';
-  } else {
-    const firstUser = await isFirstUser();
-    if (firstUser) {
-      role = 'admin';
-    }
-  }
+  const role: UserRole = user.email === adminEmail ? 'admin' : 'viewer';
 
   const newUser: AppUser = {
     uid: user.uid,
