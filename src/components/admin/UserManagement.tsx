@@ -26,6 +26,8 @@ export default function UserManagement() {
   const [approvingId, setApprovingId] = useState<string | null>(null);
   const [rejectConfirm, setRejectConfirm] = useState<string | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [removeConfirm, setRemoveConfirm] = useState<string | null>(null);
+  const [removingId, setRemovingId] = useState<string | null>(null);
 
   const loadUsers = async () => {
     setLoading(true);
@@ -102,6 +104,22 @@ export default function UserManagement() {
       setError('Failed to reject user.');
     } finally {
       setRejectingId(null);
+    }
+  };
+
+  const handleRemoveUser = async (user: AppUser) => {
+    setRemovingId(user.uid);
+    try {
+      await deleteDoc(doc(db, 'users', user.uid));
+      setUsers(prev => prev.filter(u => u.uid !== user.uid));
+      setRemoveConfirm(null);
+      setSuccess(`${user.displayName} has been removed.`);
+      setTimeout(() => setSuccess(''), 4000);
+    } catch (err) {
+      console.error('Error removing user:', err);
+      setError('Failed to remove user.');
+    } finally {
+      setRemovingId(null);
     }
   };
 
@@ -301,6 +319,21 @@ export default function UserManagement() {
               <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
                 Last login: {formatDateTime(user.lastLogin)}
               </p>
+              {user.uid !== appUser?.uid && (
+                removeConfirm === user.uid ? (
+                  <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg p-2 mt-2">
+                    <p className="text-xs text-red-700 dark:text-red-300 mb-2">Remove {user.displayName}?</p>
+                    <div className="flex gap-1">
+                      <button onClick={() => handleRemoveUser(user)} disabled={removingId === user.uid} className="flex-1 px-2 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-xs disabled:opacity-50">
+                        {removingId === user.uid ? '...' : 'Confirm'}
+                      </button>
+                      <button onClick={() => setRemoveConfirm(null)} className="flex-1 px-2 py-1 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded text-xs">Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  <button onClick={() => setRemoveConfirm(user.uid)} className="mt-1 text-xs text-red-500 dark:text-red-400 hover:underline">Remove User</button>
+                )
+              )}
             </div>
           ))}
         </div>
@@ -316,6 +349,7 @@ export default function UserManagement() {
                 <th className="text-center px-4 py-3 font-semibold">Change Role</th>
                 <th className="text-center px-4 py-3 font-semibold">PIN</th>
                 <th className="text-left px-4 py-3 font-semibold">Last Login</th>
+                <th className="text-center px-4 py-3 font-semibold">Remove</th>
               </tr>
             </thead>
             <tbody>
@@ -385,6 +419,26 @@ export default function UserManagement() {
                   </td>
                   <td className="px-4 py-3 text-gray-500 dark:text-gray-400 text-xs whitespace-nowrap">
                     {formatDateTime(user.lastLogin)}
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    {user.uid === appUser?.uid ? (
+                      <span className="text-xs text-gray-300 dark:text-gray-600">—</span>
+                    ) : removeConfirm === user.uid ? (
+                      <div className="flex items-center justify-center gap-1 flex-wrap">
+                        <span className="text-xs text-red-600 dark:text-red-400">Remove?</span>
+                        <button onClick={() => handleRemoveUser(user)} disabled={removingId === user.uid} className="px-2 py-0.5 bg-red-500 hover:bg-red-600 text-white rounded text-xs disabled:opacity-50">
+                          {removingId === user.uid ? '...' : 'Yes'}
+                        </button>
+                        <button onClick={() => setRemoveConfirm(null)} className="px-2 py-0.5 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded text-xs">No</button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setRemoveConfirm(user.uid)}
+                        className="px-2.5 py-1 text-xs bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-700 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/40 font-medium"
+                      >
+                        Remove
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
