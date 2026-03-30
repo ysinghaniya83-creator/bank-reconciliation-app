@@ -29,26 +29,15 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 export function useAuth(): AuthContextType {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within AuthProvider');
-  }
+  if (!context) throw new Error('useAuth must be used within AuthProvider');
   return context;
 }
 
-async function getOrCreateUser(user: User): Promise<AppUser> {
-  const userRef = doc(db, 'users', user.uid);
-  const userSnap = await getDoc(userRef);
-
-  if (userSnap.exists()) {
-    await updateDoc(userRef, { lastLogin: Timestamp.now() });
-    return { ...userSnap.data(), uid: user.uid } as AppUser;
-  }
-
-  // New user — role determined solely by admin email env var
+// Build a fallback AppUser from Firebase Auth data alone (when Firestore is unavailable)
+function buildFallbackUser(user: User): AppUser {
   const adminEmail = import.meta.env.VITE_ADMIN_EMAIL;
   const role: UserRole = user.email === adminEmail ? 'admin' : 'viewer';
-
-  const newUser: AppUser = {
+  return {
     uid: user.uid,
     email: user.email || '',
     displayName: user.displayName || '',
@@ -59,9 +48,29 @@ async function getOrCreateUser(user: User): Promise<AppUser> {
     createdAt: Timestamp.now(),
     lastLogin: Timestamp.now(),
   };
+}
 
-  await setDoc(userRef, newUser);
-  return newUser;
+// Try to sync user with Firestore — never throws
+async function syncUserWithFirestore(user: User): Promise<AppUser> {
+  try {
+    const userRef = doc(db, 'users', user.uid);
+    const userSnap = await getDoc(userRef);
+
+    if (userSnap.exists()) {
+      // Update lastLogin in background, don't await
+      updateDoc(userRef, { lastLogin: Timestamp.now() }).catch(() => {});
+      return { ...userSnap.data(), uid: user.uid } as AppUser;
+    }
+
+    // New user
+    const newUser = buildFallbackUser(user);
+    await setDoc(userRef, newUser);
+    return newUser;
+  } catch (err) {
+    console.warn('Firestore unavailable, using fallback user profile:', err);
+    // Return fallback so the app still works
+    return buildFallbackUser(user);
+  }
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -71,37 +80,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshUser = async () => {
     if (!currentUser) return;
-    const userRef = doc(db, 'users', currentUser.uid);
-    const userSnap = await getDoc(userRef);
-    if (userSnap.exists()) {
-      setAppUser({ ...userSnap.data(), uid: currentUser.uid } as AppUser);
-    }
+    const synced = await syncUserWithFirestore(currentUser);
+    setAppUser(synced);
   };
 
   useEffect(() => {
-    // Handle redirect result first (after Google redirects back)
-    getRedirectResult(auth).then(async (result) => {
-      if (result?.user) {
-        try {
-          const appUserData = await getOrCreateUser(result.user);
-          setAppUser(appUserData);
-        } catch (error) {
-          console.error('Error creating user after redirect:', error);
-        }
-      }
-    }).catch((error) => {
-      console.error('Redirect result error:', error);
-    });
+    // After Google redirect, getRedirectResult fires before onAuthStateChanged
+    // We handle it here to update Firestore asap; onAuthStateChanged will also fire
+    getRedirectResult(auth).catch(() => {});
 
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
       if (user) {
-        try {
-          const appUserData = await getOrCreateUser(user);
-          setAppUser(appUserData);
-        } catch (error) {
-          console.error('Error getting/creating user:', error);
-        }
+        const appUserData = await syncUserWithFirestore(user);
+        setAppUser(appUserData);
       } else {
         setAppUser(null);
       }
@@ -112,29 +104,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signInWithGoogle = async () => {
-    // Use redirect instead of popup — avoids iframe/gapi blocking issues
     await signInWithRedirect(auth, googleProvider);
-    // Page will redirect to Google; execution stops here
   };
 
   const signOut = async () => {
-    try {
-      await firebaseSignOut(auth);
-      setAppUser(null);
-    } catch (error) {
-      console.error('Error signing out:', error);
-      throw error;
-    }
+    await firebaseSignOut(auth);
+    setAppUser(null);
   };
 
-  const value: AuthContextType = {
-    currentUser,
-    appUser,
-    loading,
-    signInWithGoogle,
-    signOut,
-    refreshUser,
-  };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={{ currentUser, appUser, loading, signInWithGoogle, signOut, refreshUser }}>
+      {children}
+    </AuthContext.Provider>
+  );
 }
