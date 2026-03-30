@@ -79,5 +79,13 @@ service cloud.firestore {
       // Logs cannot be updated or deleted
       allow update, delete: if false;
     }
+
+    // EMI Loans collection
+    match /emiLoans/{loanId} {
+      // All authenticated users can read
+      allow read: if isViewer();
+      // Editors and admins can create/update/delete
+      allow create, update, delete: if isEditor();
+    }
   }
 }

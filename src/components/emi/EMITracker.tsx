@@ -64,27 +64,34 @@ export default function EMITracker() {
 
     getDocs(collection(db, 'entities')).then(snap => {
       setEntities(snap.docs.map(d => ({ id: d.id, ...d.data() } as Entity)));
-      checkDone();
-    });
+    }).catch(() => {}).finally(checkDone);
+
     getDocs(collection(db, 'transactions')).then(snap => {
       setAllTxns(snap.docs.map(d => ({ id: d.id, ...d.data() } as Transaction)));
-      checkDone();
-    });
-    getDocs(collection(db, 'emiLoans')).then(async snap => {
-      if (snap.empty) {
-        const batch = writeBatch(db);
-        for (const loan of EMI_LOANS) {
-          const ref = doc(collection(db, 'emiLoans'));
-          batch.set(ref, loan);
+    }).catch(() => {}).finally(checkDone);
+
+    (async () => {
+      try {
+        const snap = await getDocs(collection(db, 'emiLoans'));
+        if (snap.empty) {
+          const batch = writeBatch(db);
+          for (const loan of EMI_LOANS) {
+            const ref = doc(collection(db, 'emiLoans'));
+            batch.set(ref, loan);
+          }
+          await batch.commit();
+          const newSnap = await getDocs(collection(db, 'emiLoans'));
+          setLoans(newSnap.docs.map(d => ({ id: d.id, ...d.data() } as EMILoan)));
+        } else {
+          setLoans(snap.docs.map(d => ({ id: d.id, ...d.data() } as EMILoan)));
         }
-        await batch.commit();
-        const newSnap = await getDocs(collection(db, 'emiLoans'));
-        setLoans(newSnap.docs.map(d => ({ id: d.id, ...d.data() } as EMILoan)));
-      } else {
-        setLoans(snap.docs.map(d => ({ id: d.id, ...d.data() } as EMILoan)));
+      } catch {
+        // Firestore unavailable or permission denied — fall back to static data
+        setLoans(EMI_LOANS);
+      } finally {
+        checkDone();
       }
-      checkDone();
-    });
+    })();
   }, []);
 
   // Compute current balances for each mapped entity
