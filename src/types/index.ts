@@ -87,6 +87,7 @@ export interface EMILoan {
   year: number;
   owner: string;
   financier: string;
+  loanAmount: number;
   loanTenure: number;
   emiStartDate: string; // 'YYYY-MM-DD'
   emiDayOfMonth: number;

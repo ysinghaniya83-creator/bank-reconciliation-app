@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { collection, getDocs, addDoc, setDoc, deleteDoc, doc, writeBatch } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
+import { useAuth } from '../../contexts/AuthContext';
 import { Entity, Transaction, EMILoan } from '../../types';
-import { EMI_LOANS, ACCOUNT_TO_ENTITY, getUpcomingEMIs } from '../../lib/emiData';
+import { EMI_LOANS, getUpcomingEMIs } from '../../lib/emiData';
 import { formatCurrency } from '../../lib/utils';
 import { format, startOfDay } from 'date-fns';
 
@@ -26,6 +27,7 @@ const EMPTY_FORM: LoanFormData = {
   year: new Date().getFullYear(),
   owner: 'Kishan Enterprise',
   financier: 'ICICI BANK',
+  loanAmount: 0,
   loanTenure: 48,
   emiStartDate: '',
   emiDayOfMonth: 15,
@@ -33,7 +35,7 @@ const EMPTY_FORM: LoanFormData = {
   emisPaid: 0,
   remainingEmis: 0,
   emiEndDate: '',
-  debitedAccount: 'Kishan Enterprise ICICI',
+  debitedAccount: '',
 };
 
 function computeCurrentBalance(entity: Entity, allTxns: Transaction[]): number {
@@ -55,6 +57,9 @@ export default function EMITracker() {
   const [form, setForm] = useState<LoanFormData>(EMPTY_FORM);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  const { appUser } = useAuth();
+  const canEdit = appUser?.role === 'admin' || appUser?.role === 'editor';
 
   const today = new Date();
 
@@ -94,13 +99,10 @@ export default function EMITracker() {
     })();
   }, []);
 
-  // Compute current balances for each mapped entity
+  // Compute current balances keyed by entity name
   const balanceMap: Record<string, number> = {};
-  for (const [account, entityName] of Object.entries(ACCOUNT_TO_ENTITY)) {
-    const entity = entities.find(e => e.name === entityName);
-    if (entity) {
-      balanceMap[account] = computeCurrentBalance(entity, allTxns);
-    }
+  for (const entity of entities) {
+    balanceMap[entity.name] = computeCurrentBalance(entity, allTxns);
   }
 
   const upcoming7 = getUpcomingEMIs(loans, today, 7);
@@ -158,6 +160,7 @@ export default function EMITracker() {
       year: loan.year,
       owner: loan.owner,
       financier: loan.financier,
+      loanAmount: loan.loanAmount ?? 0,
       loanTenure: loan.loanTenure,
       emiStartDate: loan.emiStartDate,
       emiDayOfMonth: loan.emiDayOfMonth,
@@ -215,15 +218,17 @@ export default function EMITracker() {
           <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">EMI Tracker</h2>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Fleet loan EMIs — {format(today, 'dd MMMM yyyy')}</p>
         </div>
-        <button
-          onClick={openAdd}
-          className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Add Loan
-        </button>
+        {canEdit && (
+          <button
+            onClick={openAdd}
+            className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Add Loan
+          </button>
+        )}
       </div>
 
       {/* Low Balance Warnings */}
@@ -262,13 +267,16 @@ export default function EMITracker() {
           <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">all loans combined</p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
-          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Account Balance</p>
-          {Object.entries(balanceMap).map(([acc, bal]) => (
-            <p key={acc} className={`text-xl font-bold ${bal < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
-              {formatCurrency(bal)}
-            </p>
-          ))}
-          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Kishan Enterprise ICICI</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Account Balances</p>
+          {entities.slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0)).map(entity => {
+            const bal = balanceMap[entity.name] ?? 0;
+            return (
+              <p key={entity.name} className={`text-sm font-bold ${bal < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
+                {formatCurrency(bal)}
+              </p>
+            );
+          })}
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">all accounts</p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
           <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Next 7 Days EMIs</p>
@@ -404,20 +412,22 @@ export default function EMITracker() {
                     <td className="px-3 py-2.5 text-center text-xs text-gray-500 dark:text-gray-400">{format(new Date(loan.emiEndDate), 'MMM yyyy')}</td>
                     <td className="px-3 py-2.5 text-xs text-gray-500 dark:text-gray-400">{loan.debitedAccount}</td>
                     <td className="px-3 py-2.5 text-center">
-                      <div className="flex items-center justify-center gap-1.5">
-                        <button
-                          onClick={() => openEdit(loan)}
-                          className="px-2 py-1 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded hover:bg-blue-200 dark:hover:bg-blue-900/50 font-medium transition-colors"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => setDeleteId(loan.id!)}
-                          className="px-2 py-1 text-xs bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded hover:bg-red-200 dark:hover:bg-red-900/50 font-medium transition-colors"
-                        >
-                          Delete
-                        </button>
-                      </div>
+                      {canEdit && (
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button
+                            onClick={() => openEdit(loan)}
+                            className="px-2 py-1 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded hover:bg-blue-200 dark:hover:bg-blue-900/50 font-medium transition-colors"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => setDeleteId(loan.id!)}
+                            className="px-2 py-1 text-xs bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded hover:bg-red-200 dark:hover:bg-red-900/50 font-medium transition-colors"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 );
@@ -449,20 +459,22 @@ export default function EMITracker() {
                     {days === 0 ? 'Today' : days === 1 ? 'Tomorrow' : `${format(nextDate, 'dd MMM')}`}
                   </span>
                 </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => openEdit(loan)}
-                    className="flex-1 py-1.5 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg font-medium"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => setDeleteId(loan.id!)}
-                    className="flex-1 py-1.5 text-xs bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg font-medium"
-                  >
-                    Delete
-                  </button>
-                </div>
+                {canEdit && (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => openEdit(loan)}
+                      className="flex-1 py-1.5 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg font-medium"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => setDeleteId(loan.id!)}
+                      className="flex-1 py-1.5 text-xs bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg font-medium"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -550,6 +562,16 @@ export default function EMITracker() {
                   />
                 </div>
                 <div>
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Loan Amount (₹)</label>
+                  <input
+                    type="number"
+                    value={form.loanAmount}
+                    onChange={e => setForm(f => ({ ...f, loanAmount: +e.target.value }))}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="0"
+                  />
+                </div>
+                <div>
                   <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">EMI Day of Month</label>
                   <input
                     type="number"
@@ -606,14 +628,17 @@ export default function EMITracker() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Debited Account</label>
-                  <input
-                    type="text"
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Debited Account *</label>
+                  <select
                     value={form.debitedAccount}
                     onChange={e => setForm(f => ({ ...f, debitedAccount: e.target.value }))}
                     className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Kishan Enterprise ICICI"
-                  />
+                  >
+                    <option value="">— Select account —</option>
+                    {entities.slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0)).map(e => (
+                      <option key={e.id} value={e.name}>{e.name}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
             </div>
@@ -626,7 +651,7 @@ export default function EMITracker() {
               </button>
               <button
                 onClick={handleSave}
-                disabled={saving || !form.truckNo}
+                disabled={saving || !form.truckNo || !form.debitedAccount}
                 className="px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
               >
                 {saving ? 'Saving...' : editingLoan ? 'Update Loan' : 'Add Loan'}
