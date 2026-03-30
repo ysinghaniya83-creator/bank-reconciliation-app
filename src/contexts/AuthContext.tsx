@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import {
   User,
-  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signOut as firebaseSignOut,
   onAuthStateChanged,
 } from 'firebase/auth';
@@ -12,7 +13,7 @@ import {
   updateDoc,
   Timestamp,
 } from 'firebase/firestore';
-import { auth, db, googleProvider } from '../lib/firebase';
+import { auth, db, googleProvider, browserPopupRedirectResolver } from '../lib/firebase';
 import { AppUser, UserRole } from '../types';
 
 interface AuthContextType {
@@ -83,6 +84,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
+    // Handle the result of signInWithRedirect when the page reloads after OAuth
+    getRedirectResult(auth, browserPopupRedirectResolver).catch(() => {});
+
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
       if (user) {
@@ -98,8 +102,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signInWithGoogle = async () => {
-    await signInWithPopup(auth, googleProvider);
-    // onAuthStateChanged will fire and update state automatically
+    await signInWithRedirect(auth, googleProvider, browserPopupRedirectResolver);
+    // Page will redirect to Google, then back. onAuthStateChanged handles the rest.
   };
 
   const signOut = async () => {
