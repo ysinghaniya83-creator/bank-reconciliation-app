@@ -87,7 +87,7 @@ export interface EMILoan {
   year: number;
   owner: string;
   financier: string;
-  loanAmount: number;
+  loanAmount?: number;
   loanTenure: number;
   emiStartDate: string; // 'YYYY-MM-DD'
   emiDayOfMonth: number;
@@ -96,4 +96,5 @@ export interface EMILoan {
   remainingEmis: number;
   emiEndDate: string; // 'YYYY-MM-DD'
   debitedAccount: string; // matches entity name prefix used for balance lookup
+  loanCategory?: string; // 'Vehicle' | 'Office Loan' | 'MSME' | 'House Loan' | 'Finance' | 'Other'
 }

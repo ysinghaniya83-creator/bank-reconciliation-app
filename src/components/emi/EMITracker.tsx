@@ -14,9 +14,21 @@ const FINANCIER_COLORS: Record<string, string> = {
   'ICICI BANK': 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300',
   'YESBANK': 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300',
   'HINDUJA': 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300',
+  'IDFC BANK': 'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300',
+  'MASS FIN': 'bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-300',
+  'HDB FINANCE': 'bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300',
 };
 
-const FINANCIER_LIST = ['AXIS BANK', 'TATA MOTORS FIN', 'HDFC BANK LTD', 'ICICI BANK', 'YESBANK', 'HINDUJA'];
+const FINANCIER_LIST = ['AXIS BANK', 'TATA MOTORS FIN', 'HDFC BANK LTD', 'ICICI BANK', 'YESBANK', 'HINDUJA', 'IDFC BANK', 'MASS FIN', 'HDB FINANCE'];
+const LOAN_CATEGORIES = ['Vehicle', 'Office Loan', 'MSME', 'House Loan', 'Finance', 'Other'];
+const CATEGORY_COLORS: Record<string, string> = {
+  'Vehicle': 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300',
+  'Office Loan': 'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300',
+  'MSME': 'bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300',
+  'House Loan': 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300',
+  'Finance': 'bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-300',
+  'Other': 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300',
+};
 
 type LoanFormData = Omit<EMILoan, 'id'>;
 
@@ -36,6 +48,7 @@ const EMPTY_FORM: LoanFormData = {
   remainingEmis: 0,
   emiEndDate: '',
   debitedAccount: '',
+  loanCategory: 'Vehicle',
 };
 
 function computeCurrentBalance(entity: Entity, allTxns: Transaction[]): number {
@@ -51,6 +64,7 @@ export default function EMITracker() {
   const [loans, setLoans] = useState<EMILoan[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterFinancier, setFilterFinancier] = useState('All');
+  const [filterCategory, setFilterCategory] = useState('All');
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [editingLoan, setEditingLoan] = useState<EMILoan | null>(null);
@@ -128,8 +142,9 @@ export default function EMITracker() {
 
   const filteredLoans = loans.filter(l => {
     const matchFinancier = filterFinancier === 'All' || l.financier === filterFinancier;
+    const matchCategory = filterCategory === 'All' || (l.loanCategory ?? 'Vehicle') === filterCategory;
     const matchSearch = !search || l.truckNo.toLowerCase().includes(search.toLowerCase()) || l.financier.toLowerCase().includes(search.toLowerCase());
-    return matchFinancier && matchSearch;
+    return matchFinancier && matchCategory && matchSearch;
   });
 
   // Next EMI date for each loan
@@ -169,6 +184,7 @@ export default function EMITracker() {
       remainingEmis: loan.remainingEmis,
       emiEndDate: loan.emiEndDate,
       debitedAccount: loan.debitedAccount,
+      loanCategory: loan.loanCategory ?? 'Vehicle',
     });
     setModalOpen(true);
   }
@@ -352,15 +368,23 @@ export default function EMITracker() {
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
         {/* Filters */}
         <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 flex flex-wrap gap-2 items-center justify-between">
-          <p className="font-semibold text-gray-800 dark:text-gray-200 text-sm">{filteredLoans.length} Active Loans</p>
+          <p className="font-semibold text-gray-800 dark:text-gray-200 text-sm">{filteredLoans.length} Loans</p>
           <div className="flex flex-wrap gap-2">
             <input
               type="text"
-              placeholder="Search truck / financier..."
+              placeholder="Search ID / financier..."
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="px-3 py-1.5 text-xs border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 w-44 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
+            <select
+              value={filterCategory}
+              onChange={e => setFilterCategory(e.target.value)}
+              className="px-3 py-1.5 text-xs border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            >
+              <option value="All">All Types</option>
+              {LOAN_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
             <select
               value={filterFinancier}
               onChange={e => setFilterFinancier(e.target.value)}
@@ -376,7 +400,7 @@ export default function EMITracker() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-800 dark:bg-gray-900 text-white text-xs">
-                <th className="text-left px-3 py-2.5 font-semibold">Truck No</th>
+                <th className="text-left px-3 py-2.5 font-semibold">Loan ID / Truck No</th>
                 <th className="text-left px-3 py-2.5 font-semibold">Make / Model</th>
                 <th className="text-left px-3 py-2.5 font-semibold">Financier</th>
                 <th className="text-right px-3 py-2.5 font-semibold">EMI Amount</th>
@@ -397,6 +421,9 @@ export default function EMITracker() {
                   <tr key={loan.id || loan.truckNo} className={`border-b border-gray-100 dark:border-gray-700 ${i % 2 === 0 ? 'bg-white dark:bg-gray-800' : 'bg-gray-50 dark:bg-gray-800/50'}`}>
                     <td className="px-3 py-2.5">
                       <span className="font-mono text-xs font-semibold text-gray-800 dark:text-gray-200">{loan.truckNo}</span>
+                      {loan.loanCategory && loan.loanCategory !== 'Vehicle' && (
+                        <span className={`ml-1.5 px-1.5 py-0.5 rounded text-xs font-medium ${CATEGORY_COLORS[loan.loanCategory] || CATEGORY_COLORS['Other']}`}>{loan.loanCategory}</span>
+                      )}
                     </td>
                     <td className="px-3 py-2.5 text-gray-600 dark:text-gray-300 text-xs">{loan.make} {loan.model} <span className="text-gray-400">({loan.year})</span></td>
                     <td className="px-3 py-2.5">
@@ -496,14 +523,24 @@ export default function EMITracker() {
             <div className="px-6 py-4 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Truck No *</label>
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Loan ID / Truck No *</label>
                   <input
                     type="text"
                     value={form.truckNo}
                     onChange={e => setForm(f => ({ ...f, truckNo: e.target.value }))}
                     className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="GJ05XX0000"
+                    placeholder="GJ05XX0000 or FLAT-LOAN-IDFC"
                   />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Loan Category</label>
+                  <select
+                    value={form.loanCategory ?? 'Vehicle'}
+                    onChange={e => setForm(f => ({ ...f, loanCategory: e.target.value }))}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    {LOAN_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Owner</label>
