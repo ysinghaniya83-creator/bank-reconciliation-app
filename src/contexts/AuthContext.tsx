@@ -1,11 +1,9 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import {
   User,
-  signInWithRedirect,
-  getRedirectResult,
+  signInWithPopup,
   signOut as firebaseSignOut,
   onAuthStateChanged,
-  browserPopupRedirectResolver,
 } from 'firebase/auth';
 import {
   doc,
@@ -58,6 +56,7 @@ async function syncUserWithFirestore(user: User): Promise<AppUser> {
       updateDoc(userRef, { lastLogin: Timestamp.now() }).catch(() => {});
       return { ...userSnap.data(), uid: user.uid } as AppUser;
     }
+    // New user — create their profile
     const newUser = buildFallbackUser(user);
     await setDoc(userRef, newUser);
     return newUser;
@@ -79,41 +78,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    let authUnsubscribe: (() => void) | null = null;
-
-    const initialize = async () => {
-      // MUST await this before subscribing to onAuthStateChanged.
-      // Without it, onAuthStateChanged fires with null immediately (before
-      // Firebase processes the redirect credentials), causing a flash to the
-      // login page even though auth succeeded.
-      try {
-        await getRedirectResult(auth, browserPopupRedirectResolver);
-      } catch {
-        // No pending redirect or benign error — continue normally
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        const appUserData = await syncUserWithFirestore(user);
+        setCurrentUser(user);
+        setAppUser(appUserData);
+      } else {
+        setCurrentUser(null);
+        setAppUser(null);
       }
-
-      authUnsubscribe = onAuthStateChanged(auth, async (user) => {
-        if (user) {
-          const appUserData = await syncUserWithFirestore(user);
-          setCurrentUser(user);
-          setAppUser(appUserData);
-        } else {
-          setCurrentUser(null);
-          setAppUser(null);
-        }
-        setLoading(false);
-      });
-    };
-
-    initialize();
-
-    return () => {
-      authUnsubscribe?.();
-    };
+      setLoading(false);
+    });
+    return unsubscribe;
   }, []);
 
   const signInWithGoogle = async () => {
-    await signInWithRedirect(auth, googleProvider, browserPopupRedirectResolver);
+    // signInWithPopup triggers onAuthStateChanged on success — no extra handling needed
+    await signInWithPopup(auth, googleProvider);
   };
 
   const signOut = async () => {

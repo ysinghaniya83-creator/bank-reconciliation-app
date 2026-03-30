@@ -11,10 +11,13 @@ export default function LoginPage() {
     setError('');
     try {
       await signInWithGoogle();
-      // Page will redirect to Google — loading stays true until navigation
+      // onAuthStateChanged fires on success — App.tsx routes to dashboard automatically
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      setError(msg || 'Sign-in failed. Please try again.');
+      // Only show real errors (not user-dismissed popup)
+      if (!msg.toLowerCase().includes('popup_closed_by_user') && !msg.toLowerCase().includes('cancelled-popup-request')) {
+        setError(msg || 'Sign-in failed. Please try again.');
+      }
       setLoading(false);
     }
   };
