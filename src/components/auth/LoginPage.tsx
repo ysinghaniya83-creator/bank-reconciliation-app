@@ -12,10 +12,17 @@ export default function LoginPage() {
     try {
       await signInWithGoogle();
     } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message);
+      const msg = err instanceof Error ? err.message : '';
+      // Firebase blocks sign-in when the app domain isn't whitelisted
+      if (msg.includes('Illegal url') || msg.includes('auth/unauthorized-domain') || msg.includes('not authorized')) {
+        setError('This domain is not authorized for sign-in. Please ask your admin to add it in Firebase Console → Authentication → Authorized domains.');
+      } else if (msg.includes('auth/popup-closed-by-user') || msg.includes('auth/cancelled-popup-request')) {
+        // User closed the popup — not an error
+        setError('');
+      } else if (msg.includes('auth/popup-blocked')) {
+        setError('Popup was blocked by your browser. Please allow popups for this site and try again.');
       } else {
-        setError('Failed to sign in. Please try again.');
+        setError('Sign-in failed. Please try again.');
       }
     } finally {
       setLoading(false);
@@ -56,7 +63,7 @@ export default function LoginPage() {
 
         {/* Error Message */}
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm">
+          <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 text-red-700 dark:text-red-300 px-4 py-3 rounded-lg mb-4 text-sm leading-relaxed">
             {error}
           </div>
         )}
