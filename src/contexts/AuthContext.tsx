@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import {
   User,
-  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signOut as firebaseSignOut,
   onAuthStateChanged,
 } from 'firebase/auth';
@@ -99,6 +100,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
+    // Handle redirect result first (after Google redirects back)
+    getRedirectResult(auth).then(async (result) => {
+      if (result?.user) {
+        try {
+          const appUserData = await getOrCreateUser(result.user);
+          setAppUser(appUserData);
+        } catch (error) {
+          console.error('Error creating user after redirect:', error);
+        }
+      }
+    }).catch((error) => {
+      console.error('Redirect result error:', error);
+    });
+
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
       if (user) {
@@ -118,12 +133,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signInWithGoogle = async () => {
-    try {
-      await signInWithPopup(auth, googleProvider);
-    } catch (error) {
-      console.error('Error signing in with Google:', error);
-      throw error;
-    }
+    // Use redirect instead of popup — avoids iframe/gapi blocking issues
+    await signInWithRedirect(auth, googleProvider);
+    // Page will redirect to Google; execution stops here
   };
 
   const signOut = async () => {

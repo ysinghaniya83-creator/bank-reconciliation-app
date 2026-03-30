@@ -10,23 +10,14 @@ export default function LoginPage() {
     setLoading(true);
     setError('');
     try {
+      // This redirects the whole page to Google — no popup, no iframes
       await signInWithGoogle();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : '';
-      // Firebase blocks sign-in when the app domain isn't whitelisted
-      if (msg.includes('Illegal url') || msg.includes('auth/unauthorized-domain') || msg.includes('not authorized')) {
-        setError('This domain is not authorized for sign-in. Please ask your admin to add it in Firebase Console → Authentication → Authorized domains.');
-      } else if (msg.includes('auth/popup-closed-by-user') || msg.includes('auth/cancelled-popup-request')) {
-        // User closed the popup — not an error
-        setError('');
-      } else if (msg.includes('auth/popup-blocked')) {
-        setError('Popup was blocked by your browser. Please allow popups for this site and try again.');
-      } else {
-        setError('Sign-in failed. Please try again.');
-      }
-    } finally {
+      setError(msg || 'Sign-in failed. Please try again.');
       setLoading(false);
     }
+    // Note: if redirect succeeds, the page navigates away so setLoading(false) is never reached
   };
 
   return (
