@@ -11,6 +11,7 @@ import UserManagement from './components/admin/UserManagement';
 import UserLogs from './components/admin/UserLogs';
 import ReportsDashboard from './components/reports/ReportsDashboard';
 import Settings from './components/admin/Settings';
+import EMITracker from './components/emi/EMITracker';
 
 function ProtectedRoute({ children, requireRole }: { children: React.ReactNode; requireRole?: string[] }) {
   const { appUser, loading } = useAuth();
@@ -80,6 +81,7 @@ function AppRoutes() {
         <Route path="date-filter" element={<DateFilterDashboard />} />
         <Route path="ledger" element={<DailyLedger />} />
         <Route path="reports" element={<ReportsDashboard />} />
+        <Route path="emi" element={<EMITracker />} />
         <Route
           path="admin/settings"
           element={

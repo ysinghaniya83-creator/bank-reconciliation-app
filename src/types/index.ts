@@ -78,3 +78,20 @@ export interface FilterState {
   entityName: string;
   category: string;
 }
+
+export interface EMILoan {
+  truckNo: string;
+  make: string;
+  model: string;
+  year: number;
+  owner: string;
+  financier: string;
+  loanTenure: number;
+  emiStartDate: string; // 'YYYY-MM-DD'
+  emiDayOfMonth: number;
+  emiAmount: number;
+  emisPaid: number;
+  remainingEmis: number;
+  emiEndDate: string; // 'YYYY-MM-DD'
+  debitedAccount: string; // matches entity name prefix used for balance lookup
+}
