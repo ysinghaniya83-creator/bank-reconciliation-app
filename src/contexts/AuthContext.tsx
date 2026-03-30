@@ -1,8 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import {
   User,
-  signInWithRedirect,
-  getRedirectResult,
+  signInWithPopup,
   signOut as firebaseSignOut,
   onAuthStateChanged,
 } from 'firebase/auth';
@@ -68,7 +67,6 @@ async function syncUserWithFirestore(user: User): Promise<AppUser> {
     return newUser;
   } catch (err) {
     console.warn('Firestore unavailable, using fallback user profile:', err);
-    // Return fallback so the app still works
     return buildFallbackUser(user);
   }
 }
@@ -85,10 +83,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    // After Google redirect, getRedirectResult fires before onAuthStateChanged
-    // We handle it here to update Firestore asap; onAuthStateChanged will also fire
-    getRedirectResult(auth).catch(() => {});
-
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
       if (user) {
@@ -104,7 +98,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signInWithGoogle = async () => {
-    await signInWithRedirect(auth, googleProvider);
+    await signInWithPopup(auth, googleProvider);
+    // onAuthStateChanged will fire and update state automatically
   };
 
   const signOut = async () => {

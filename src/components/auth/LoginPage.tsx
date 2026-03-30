@@ -1,6 +1,19 @@
 import { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 
+// Errors from Firebase/gapi that are not user-actionable
+const IGNORABLE_ERROR_PATTERNS = [
+  'illegal url',
+  'gapi',
+  'cross_client',
+  'popup_closed_by_user',
+];
+
+function isIgnorableError(msg: string): boolean {
+  const lower = msg.toLowerCase();
+  return IGNORABLE_ERROR_PATTERNS.some((p) => lower.includes(p));
+}
+
 export default function LoginPage() {
   const { signInWithGoogle } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -10,14 +23,16 @@ export default function LoginPage() {
     setLoading(true);
     setError('');
     try {
-      // This redirects the whole page to Google — no popup, no iframes
       await signInWithGoogle();
+      // On success onAuthStateChanged fires and React Router redirects away
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : '';
-      setError(msg || 'Sign-in failed. Please try again.');
+      const msg = err instanceof Error ? err.message : String(err);
+      if (!isIgnorableError(msg)) {
+        setError(msg || 'Sign-in failed. Please try again.');
+      }
+    } finally {
       setLoading(false);
     }
-    // Note: if redirect succeeds, the page navigates away so setLoading(false) is never reached
   };
 
   return (
