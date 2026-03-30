@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, getDocs, updateDoc, doc } from 'firebase/firestore';
+import { collection, getDocs, updateDoc, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { AppUser, UserRole } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
@@ -11,6 +11,7 @@ const roleColors: Record<UserRole, string> = {
   admin: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-700',
   editor: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700',
   viewer: 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600',
+  pending: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-700',
 };
 
 export default function UserManagement() {
@@ -22,6 +23,9 @@ export default function UserManagement() {
   const [savingId, setSavingId] = useState<string | null>(null);
   const [pinResetConfirm, setPinResetConfirm] = useState<string | null>(null);
   const [resettingPinId, setResettingPinId] = useState<string | null>(null);
+  const [approvingId, setApprovingId] = useState<string | null>(null);
+  const [rejectConfirm, setRejectConfirm] = useState<string | null>(null);
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
 
   const loadUsers = async () => {
     setLoading(true);
@@ -67,6 +71,40 @@ export default function UserManagement() {
     }
   };
 
+  const pendingUsers = users.filter(u => u.role === 'pending');
+  const activeUsers = users.filter(u => u.role !== 'pending');
+
+  const handleApprove = async (user: AppUser) => {
+    setApprovingId(user.uid);
+    try {
+      await updateDoc(doc(db, 'users', user.uid), { role: 'viewer' });
+      setUsers(prev => prev.map(u => u.uid === user.uid ? { ...u, role: 'viewer' as UserRole } : u));
+      setSuccess(`${user.displayName} has been approved with viewer access.`);
+      setTimeout(() => setSuccess(''), 4000);
+    } catch (err) {
+      console.error('Error approving user:', err);
+      setError('Failed to approve user.');
+    } finally {
+      setApprovingId(null);
+    }
+  };
+
+  const handleReject = async (user: AppUser) => {
+    setRejectingId(user.uid);
+    try {
+      await deleteDoc(doc(db, 'users', user.uid));
+      setUsers(prev => prev.filter(u => u.uid !== user.uid));
+      setRejectConfirm(null);
+      setSuccess(`${user.displayName}'s access request has been rejected.`);
+      setTimeout(() => setSuccess(''), 4000);
+    } catch (err) {
+      console.error('Error rejecting user:', err);
+      setError('Failed to reject user.');
+    } finally {
+      setRejectingId(null);
+    }
+  };
+
   const handleResetPin = async (userId: string) => {
     setResettingPinId(userId);
     try {
@@ -96,8 +134,73 @@ export default function UserManagement() {
       {/* Header */}
       <div>
         <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">User Management</h3>
-        <p className="text-sm text-gray-500 dark:text-gray-400">{users.length} registered user{users.length !== 1 ? 's' : ''}</p>
+        <p className="text-sm text-gray-500 dark:text-gray-400">{activeUsers.length} active user{activeUsers.length !== 1 ? 's' : ''}{pendingUsers.length > 0 ? `, ${pendingUsers.length} pending` : ''}</p>
       </div>
+
+      {/* Pending Approvals */}
+      {pendingUsers.length > 0 && (
+        <div className="bg-amber-50 dark:bg-amber-900/10 rounded-xl border border-amber-200 dark:border-amber-700 overflow-hidden">
+          <div className="px-4 py-3 border-b border-amber-200 dark:border-amber-700 flex items-center gap-2">
+            <span className="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></span>
+            <p className="text-sm font-semibold text-amber-700 dark:text-amber-300">Pending Access Requests ({pendingUsers.length})</p>
+          </div>
+          <div className="divide-y divide-amber-100 dark:divide-amber-800">
+            {pendingUsers.map(user => (
+              <div key={user.uid} className="p-4 flex items-center justify-between gap-4 flex-wrap">
+                <div className="flex items-center gap-3 min-w-0">
+                  {user.photoURL ? (
+                    <img src={user.photoURL} alt={user.displayName} className="w-9 h-9 rounded-full border border-amber-200 dark:border-amber-600" />
+                  ) : (
+                    <div className="w-9 h-9 rounded-full bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center">
+                      <span className="text-amber-600 dark:text-amber-300 font-semibold text-sm">{user.displayName?.[0] || 'U'}</span>
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <p className="font-medium text-gray-900 dark:text-gray-100 truncate">{user.displayName}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{user.email}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {rejectConfirm === user.uid ? (
+                    <>
+                      <span className="text-xs text-red-600 dark:text-red-400">Reject {user.displayName}?</span>
+                      <button
+                        onClick={() => handleReject(user)}
+                        disabled={rejectingId === user.uid}
+                        className="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-lg text-xs font-medium disabled:opacity-50"
+                      >
+                        {rejectingId === user.uid ? '...' : 'Confirm'}
+                      </button>
+                      <button
+                        onClick={() => setRejectConfirm(null)}
+                        className="px-3 py-1.5 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-xs"
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => handleApprove(user)}
+                        disabled={approvingId === user.uid}
+                        className="px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white rounded-lg text-xs font-medium disabled:opacity-50 transition-colors"
+                      >
+                        {approvingId === user.uid ? 'Approving...' : 'Approve'}
+                      </button>
+                      <button
+                        onClick={() => setRejectConfirm(user.uid)}
+                        className="px-3 py-1.5 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-700 rounded-lg text-xs font-medium transition-colors"
+                      >
+                        Reject
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 px-4 py-3 rounded-lg text-sm flex justify-between">
@@ -135,7 +238,7 @@ export default function UserManagement() {
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
         {/* Mobile Cards */}
         <div className="block sm:hidden">
-          {users.map(user => (
+          {activeUsers.map(user => (
             <div key={user.uid} className="p-4 border-b border-gray-100 dark:border-gray-700 last:border-0">
               <div className="flex items-center gap-3 mb-3">
                 {user.photoURL ? (
@@ -216,7 +319,7 @@ export default function UserManagement() {
               </tr>
             </thead>
             <tbody>
-              {users.map((user, index) => (
+              {activeUsers.map((user, index) => (
                 <tr
                   key={user.uid}
                   className={`border-b border-gray-100 dark:border-gray-700 ${index % 2 === 0 ? 'bg-white dark:bg-gray-800' : 'bg-gray-50 dark:bg-gray-800/50'}`}

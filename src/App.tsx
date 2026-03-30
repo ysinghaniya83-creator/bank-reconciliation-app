@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
 import LoginPage from './components/auth/LoginPage';
+import PendingApproval from './components/auth/PendingApproval';
 import PinSetup from './components/pin/PinSetup';
 import Layout from './components/layout/Layout';
 import ExecutiveDashboard from './components/dashboard/ExecutiveDashboard';
@@ -48,6 +49,11 @@ function AppRoutes() {
         </div>
       </div>
     );
+  }
+
+  // Show pending approval screen if user's access is not yet approved
+  if (appUser && appUser.role === 'pending') {
+    return <PendingApproval />;
   }
 
   // Show PIN setup if user is logged in but hasn't set PIN

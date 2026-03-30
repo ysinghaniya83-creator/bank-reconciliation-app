@@ -34,7 +34,7 @@ export function useAuth(): AuthContextType {
 
 function buildFallbackUser(user: User): AppUser {
   const adminEmail = import.meta.env.VITE_ADMIN_EMAIL;
-  const role: UserRole = user.email === adminEmail ? 'admin' : 'viewer';
+  const role: UserRole = user.email === adminEmail ? 'admin' : 'pending';
   return {
     uid: user.uid,
     email: user.email || '',
