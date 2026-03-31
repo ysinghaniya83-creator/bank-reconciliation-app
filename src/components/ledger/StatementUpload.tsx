@@ -125,7 +125,7 @@ export default function StatementUpload() {
 
       if (!res.ok) {
         const text = await res.text();
-        let errMsg = `Server error (HTTP ${res.status})`;
+        let errMsg = `Server error (HTTP ${res.status}): ${text.slice(0, 200)}`;
         try { errMsg = JSON.parse(text).error || errMsg; } catch {}
         throw new Error(errMsg);
       }
