@@ -117,20 +117,45 @@ export default function StatementUpload() {
     try {
       const base64 = await compressImage(selectedFile);
 
-      const res = await fetch('/api/ocr-statement', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageBase64: base64, mimeType: 'image/jpeg' }),
-      });
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+      if (!apiKey) throw new Error('Gemini API key not configured. Add VITE_GEMINI_API_KEY to Vercel environment variables.');
 
-      if (!res.ok) {
-        const text = await res.text();
-        let errMsg = `Server error (HTTP ${res.status}): ${text.slice(0, 200)}`;
-        try { errMsg = JSON.parse(text).error || errMsg; } catch {}
-        throw new Error(errMsg);
+      const prompt = 'You are an expert bank statement parser. Extract all transactions from this Indian bank statement image. ' +
+        'Return ONLY a valid JSON object: { "bank": "bank name", "accountHolder": "holder name", ' +
+        '"transactions": [ { "date": "YYYY-MM-DD", "description": "narration", "credit": 0, "debit": 0, "referenceNo": null } ] }. ' +
+        'Rules: use 0 not null for amounts, parse all dates to YYYY-MM-DD, include every row, return only raw JSON no markdown.';
+
+      const geminiRes = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: 'image/jpeg', data: base64 } }] }],
+            generationConfig: { temperature: 0.1 },
+          }),
+        }
+      );
+
+      if (!geminiRes.ok) {
+        const errText = await geminiRes.text();
+        let detail = `Gemini API error (${geminiRes.status})`;
+        try { detail = JSON.parse(errText)?.error?.message || detail; } catch {}
+        throw new Error(detail);
       }
 
-      const data: { bank: string; accountHolder: string; transactions: OcrTransaction[] } = await res.json();
+      const geminiJson = await geminiRes.json();
+      const rawText = geminiJson?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!rawText) {
+        const reason = geminiJson?.candidates?.[0]?.finishReason || 'unknown';
+        throw new Error(`Gemini returned no text. finishReason: ${reason}. Try a clearer image.`);
+      }
+      const cleaned = rawText.replace(/^```json\s*/i, '').replace(/\s*```$/, '').trim();
+      let parsedResult: { bank: string; accountHolder: string; transactions: OcrTransaction[] };
+      try { parsedResult = JSON.parse(cleaned); } catch {
+        throw new Error('Gemini returned invalid JSON. Try a clearer image.');
+      }
+      const data = parsedResult;
       const ocrTxns: OcrTransaction[] = data.transactions || [];
 
       if (ocrTxns.length === 0) {
