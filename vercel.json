@@ -1,7 +1,6 @@
 {
   "functions": {
     "api/ocr-statement.js": {
-      "runtime": "nodejs20.x",
       "maxDuration": 30
     }
   },
