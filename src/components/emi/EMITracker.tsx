@@ -3,7 +3,7 @@ import { collection, getDocs, addDoc, setDoc, deleteDoc, doc, writeBatch } from 
 import { db } from '../../lib/firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import { Entity, Transaction, EMILoan } from '../../types';
-import { EMI_LOANS, getUpcomingEMIs } from '../../lib/emiData';
+import { EMI_LOANS, ACCOUNT_TO_ENTITY, getUpcomingEMIs } from '../../lib/emiData';
 import { formatCurrency } from '../../lib/utils';
 import { format, startOfDay } from 'date-fns';
 
@@ -131,7 +131,8 @@ export default function EMITracker() {
       grouped[loan.debitedAccount] = (grouped[loan.debitedAccount] || 0) + loan.emiAmount;
     }
     for (const [account, dueAmount] of Object.entries(grouped)) {
-      const balance = balanceMap[account] ?? 0;
+      const entityName = ACCOUNT_TO_ENTITY[account] ?? account;
+      const balance = balanceMap[entityName] ?? 0;
       if (balance < dueAmount) {
         warnings.push({ account, dueDate: slot.date, daysFromNow: slot.daysFromNow, dueAmount, balance, shortfall: dueAmount - balance });
       }
