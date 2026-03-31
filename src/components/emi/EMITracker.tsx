@@ -334,7 +334,8 @@ export default function EMITracker() {
                   <div className="text-right">
                     <p className="font-bold text-gray-900 dark:text-gray-100">{formatCurrency(slot.totalAmount)}</p>
                     {Object.entries(accountAmounts).map(([acc, amt]) => {
-                      const bal = balanceMap[acc] ?? 0;
+                      const entityName = ACCOUNT_TO_ENTITY[acc] ?? acc;
+                      const bal = balanceMap[entityName] ?? 0;
                       const isLow = bal < amt;
                       return (
                         <p key={acc} className={`text-xs mt-0.5 ${isLow ? 'text-red-500 dark:text-red-400 font-semibold' : 'text-green-600 dark:text-green-400'}`}>
