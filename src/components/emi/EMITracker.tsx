@@ -20,9 +20,10 @@ const FINANCIER_COLORS: Record<string, string> = {
 };
 
 const FINANCIER_LIST = ['AXIS BANK', 'TATA MOTORS FIN', 'HDFC BANK LTD', 'ICICI BANK', 'YESBANK', 'HINDUJA', 'IDFC BANK', 'MASS FIN', 'HDB FINANCE'];
-const LOAN_CATEGORIES = ['Vehicle', 'Office Loan', 'MSME', 'House Loan', 'Finance', 'Other'];
+const LOAN_CATEGORIES = ['Vehicle', 'Equipment', 'Office Loan', 'MSME', 'House Loan', 'Finance', 'Other'];
 const CATEGORY_COLORS: Record<string, string> = {
   'Vehicle': 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300',
+  'Equipment': 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300',
   'Office Loan': 'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300',
   'MSME': 'bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300',
   'House Loan': 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300',
