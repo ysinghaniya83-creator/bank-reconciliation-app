@@ -126,7 +126,7 @@ export default function StatementUpload() {
         'Rules: use 0 not null for amounts, parse all dates to YYYY-MM-DD, include every row, return only raw JSON no markdown.';
 
       const geminiRes = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
