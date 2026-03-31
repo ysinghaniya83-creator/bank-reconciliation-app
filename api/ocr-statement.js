@@ -1,106 +1,136 @@
+const https = require('https');
+
+function readBody(req) {
+  return new Promise(function(resolve, reject) {
+    if (req.body !== undefined && req.body !== null) {
+      if (typeof req.body === 'object' && !Buffer.isBuffer(req.body)) {
+        return resolve(req.body);
+      }
+      var raw = Buffer.isBuffer(req.body) ? req.body.toString('utf8') : String(req.body);
+      try { return resolve(JSON.parse(raw)); } catch (e) { return resolve({}); }
+    }
+    var chunks = [];
+    req.on('data', function(c) { chunks.push(c); });
+    req.on('end', function() {
+      var raw = Buffer.concat(chunks).toString('utf8');
+      try { resolve(JSON.parse(raw)); } catch (e) { resolve({}); }
+    });
+    req.on('error', reject);
+  });
+}
+
+function geminiPost(apiKey, payload) {
+  return new Promise(function(resolve, reject) {
+    var data = JSON.stringify(payload);
+    var options = {
+      hostname: 'generativelanguage.googleapis.com',
+      path: '/v1beta/models/gemini-1.5-flash:generateContent?key=' + apiKey,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(data),
+      },
+    };
+    var req = https.request(options, function(response) {
+      var chunks = [];
+      response.on('data', function(c) { chunks.push(c); });
+      response.on('end', function() {
+        resolve({ status: response.statusCode, body: Buffer.concat(chunks).toString('utf8') });
+      });
+    });
+    req.on('error', reject);
+    req.write(data);
+    req.end();
+  });
+}
+
 module.exports = async function handler(req, res) {
   res.setHeader('Content-Type', 'application/json');
 
   if (req.method !== 'POST') {
-    return res.status(405).end(JSON.stringify({ error: 'Method not allowed' }));
+    res.statusCode = 405;
+    return res.end(JSON.stringify({ error: 'Method not allowed' }));
   }
 
   try {
-    // Body may be pre-parsed object or raw string
-    let body = req.body;
-    if (typeof body === 'string') {
-      try { body = JSON.parse(body); } catch { body = {}; }
-    }
-    body = body || {};
-
-    const { imageBase64, mimeType } = body;
+    var body = await readBody(req);
+    var imageBase64 = body && body.imageBase64;
+    var mimeType = body && body.mimeType;
 
     if (!imageBase64 || !mimeType) {
-      return res.status(400).end(JSON.stringify({ error: 'imageBase64 and mimeType are required' }));
+      res.statusCode = 400;
+      return res.end(JSON.stringify({ error: 'imageBase64 and mimeType are required' }));
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
+    var apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      return res.status(500).end(JSON.stringify({ error: 'GEMINI_API_KEY environment variable is not set on the server' }));
+      res.statusCode = 500;
+      return res.end(JSON.stringify({ error: 'GEMINI_API_KEY not set on server' }));
     }
 
-    const prompt = `You are an expert bank statement parser. Extract all transactions from this Indian bank statement image.
+    var prompt = 'You are an expert bank statement parser. Extract all transactions from this Indian bank statement image. ' +
+      'Return ONLY a valid JSON object: { "bank": "bank name", "accountHolder": "holder name", ' +
+      '"transactions": [ { "date": "YYYY-MM-DD", "description": "narration", "credit": 0, "debit": 0, "referenceNo": null } ] }. ' +
+      'Rules: use 0 not null for amounts, parse all dates to YYYY-MM-DD, include every row, return only raw JSON no markdown.';
 
-Return ONLY a valid JSON object with this exact structure (no markdown, no explanation):
-{
-  "bank": "detected bank name",
-  "accountHolder": "account holder name as shown",
-  "transactions": [
-    {
-      "date": "YYYY-MM-DD",
-      "description": "full narration text",
-      "credit": 0,
-      "debit": 0,
-      "referenceNo": null
-    }
-  ]
-}
+    var payload = {
+      contents: [{
+        parts: [
+          { text: prompt },
+          { inline_data: { mime_type: mimeType, data: imageBase64 } }
+        ]
+      }],
+      generationConfig: { temperature: 0.1 }
+    };
 
-Rules: use 0 not null for amounts, parse all dates to YYYY-MM-DD, include every row.`;
-
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-
-    const geminiRes = await fetch(geminiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{
-          parts: [
-            { text: prompt },
-            { inline_data: { mime_type: mimeType, data: imageBase64 } }
-          ]
-        }],
-        generationConfig: { temperature: 0.1 }
-      })
-    });
-
-    const rawText = await geminiRes.text();
-
-    if (!geminiRes.ok) {
-      return res.status(502).end(JSON.stringify({
-        error: `Gemini API error ${geminiRes.status}: ${rawText.slice(0, 300)}`
-      }));
-    }
-
-    let geminiData;
+    var geminiResult;
     try {
-      geminiData = JSON.parse(rawText);
+      geminiResult = await geminiPost(apiKey, payload);
+    } catch (networkErr) {
+      res.statusCode = 502;
+      return res.end(JSON.stringify({ error: 'Network error: ' + networkErr.message }));
+    }
+
+    if (geminiResult.status !== 200) {
+      res.statusCode = 502;
+      return res.end(JSON.stringify({ error: 'Gemini error ' + geminiResult.status + ': ' + geminiResult.body.slice(0, 300) }));
+    }
+
+    var geminiData;
+    try {
+      geminiData = JSON.parse(geminiResult.body);
     } catch (e) {
-      return res.status(500).end(JSON.stringify({ error: 'Failed to parse Gemini response: ' + rawText.slice(0, 200) }));
+      res.statusCode = 500;
+      return res.end(JSON.stringify({ error: 'Cannot parse Gemini response: ' + geminiResult.body.slice(0, 200) }));
     }
 
-    const text = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text;
+    var candidates = geminiData && geminiData.candidates;
+    var text = candidates && candidates[0] && candidates[0].content &&
+      candidates[0].content.parts && candidates[0].content.parts[0] &&
+      candidates[0].content.parts[0].text;
+
     if (!text) {
-      const finishReason = geminiData?.candidates?.[0]?.finishReason;
-      return res.status(500).end(JSON.stringify({
-        error: `Gemini returned no text. Finish reason: ${finishReason || 'unknown'}. Check image quality.`
-      }));
+      var reason = (candidates && candidates[0] && candidates[0].finishReason) || 'unknown';
+      res.statusCode = 500;
+      return res.end(JSON.stringify({ error: 'Gemini returned no text. finishReason: ' + reason }));
     }
 
-    const cleaned = text.replace(/^```json\s*/i, '').replace(/\s*```$/, '').trim();
-
-    let parsed;
+    var cleaned = text.replace(/^```json\s*/i, '').replace(/\s*```$/, '').trim();
+    var parsed;
     try {
       parsed = JSON.parse(cleaned);
     } catch (e) {
-      return res.status(500).end(JSON.stringify({ error: 'Gemini JSON parse failed: ' + cleaned.slice(0, 200) }));
+      res.statusCode = 500;
+      return res.end(JSON.stringify({ error: 'Gemini JSON invalid: ' + cleaned.slice(0, 300) }));
     }
 
-    return res.status(200).end(JSON.stringify(parsed));
+    res.statusCode = 200;
+    return res.end(JSON.stringify(parsed));
 
   } catch (err) {
-    const msg = (err && err.message) ? err.message : String(err);
-    return res.status(500).end(JSON.stringify({ error: 'Unexpected error: ' + msg }));
+    res.statusCode = 500;
+    return res.end(JSON.stringify({ error: 'Unexpected: ' + (err && err.message ? err.message : String(err)) }));
   }
-};
-
-module.exports.config = {
-  api: { bodyParser: { sizeLimit: '10mb' } }
 };
 
 
