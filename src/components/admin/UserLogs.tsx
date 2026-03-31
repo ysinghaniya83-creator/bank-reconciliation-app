@@ -83,9 +83,9 @@ export default function UserLogs() {
     loadLogs(false, null);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const filteredLogs = searchEmail
-    ? logs.filter(l => l.userEmail.toLowerCase().includes(searchEmail.toLowerCase()))
-    : logs;
+  const filteredLogs = logs
+    .filter(l => l.action !== 'page_visit')
+    .filter(l => searchEmail ? l.userEmail.toLowerCase().includes(searchEmail.toLowerCase()) : true);
 
   const getActionColor = (action: string) => {
     if (action.includes('delete')) return 'bg-red-100 text-red-700';
