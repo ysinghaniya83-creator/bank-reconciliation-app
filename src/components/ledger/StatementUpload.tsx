@@ -124,8 +124,10 @@ export default function StatementUpload() {
       });
 
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: 'Server error' }));
-        throw new Error(err.error || 'Failed to extract transactions');
+        const text = await res.text();
+        let errMsg = `Server error (HTTP ${res.status})`;
+        try { errMsg = JSON.parse(text).error || errMsg; } catch {}
+        throw new Error(errMsg);
       }
 
       const data: { bank: string; accountHolder: string; transactions: OcrTransaction[] } = await res.json();
