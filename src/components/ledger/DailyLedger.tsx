@@ -12,7 +12,8 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { Transaction, FilterState } from '../../types';
-import { formatCurrency, formatDate, CATEGORIES, ENTITIES, dateToString } from '../../lib/utils';
+import { formatCurrency, formatDate, CATEGORIES, dateToString } from '../../lib/utils';
+import { useEntities } from '../../contexts/EntitiesContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { parseISO, startOfDay, endOfDay } from 'date-fns';
 import Combobox from '../ui/Combobox';
@@ -58,10 +59,11 @@ export default function DailyLedger() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const canEdit = appUser?.role === 'admin' || appUser?.role === 'editor';
+  const { entities } = useEntities();
 
   // All unique descriptions for autocomplete
   const allDescriptions = Array.from(new Set(transactions.map(t => t.description).filter(Boolean)));
-  const entityNames = ENTITIES.map(e => e.name);
+  const entityNames = entities.map(e => e.name);
   const categoryNames = CATEGORIES;
 
   useEffect(() => {
@@ -443,7 +445,7 @@ export default function DailyLedger() {
               className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
             >
               <option value="">All Entities</option>
-              {ENTITIES.map(e => (
+              {entities.map(e => (
                 <option key={e.name} value={e.name}>{e.name}</option>
               ))}
             </select>

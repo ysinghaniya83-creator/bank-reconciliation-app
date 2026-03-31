@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Transaction, TransactionFormData } from '../../types';
-import { CATEGORIES, ENTITIES, dateToString } from '../../lib/utils';
+import { CATEGORIES, dateToString } from '../../lib/utils';
+import { useEntities } from '../../contexts/EntitiesContext';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   collection,
@@ -33,6 +34,7 @@ export default function TransactionForm({
   onCancel,
 }: TransactionFormProps) {
   const { appUser } = useAuth();
+  const { entities } = useEntities();
   const [form, setForm] = useState<TransactionFormData>(emptyForm);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -189,7 +191,7 @@ export default function TransactionForm({
               className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="">Select entity...</option>
-              {ENTITIES.map(e => (
+              {entities.map(e => (
                 <option key={e.name} value={e.name}>{e.name}</option>
               ))}
             </select>

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc, getDocs, query, where, Timestamp } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
-import { Entity } from '../../types';
+import { useEntities } from '../../contexts/EntitiesContext';
 
 interface Category {
   id: string;
@@ -10,9 +10,8 @@ interface Category {
 }
 
 export default function Settings() {
-  const [entities, setEntities] = useState<Entity[]>([]);
+  const { entities, loading: loadingEntities } = useEntities();
   const [categories, setCategories] = useState<Category[]>([]);
-  const [loadingEntities, setLoadingEntities] = useState(true);
   const [loadingCategories, setLoadingCategories] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -30,16 +29,6 @@ export default function Settings() {
   const [categoryName, setCategoryName] = useState('');
   const [savingCategory, setSavingCategory] = useState(false);
   const [deleteCategoryConfirm, setDeleteCategoryConfirm] = useState<string | null>(null);
-
-  useEffect(() => {
-    const unsub = onSnapshot(collection(db, 'entities'), snap => {
-      const list = snap.docs.map(d => ({ id: d.id, ...d.data() }) as Entity);
-      list.sort((a, b) => (a.order || 0) - (b.order || 0));
-      setEntities(list);
-      setLoadingEntities(false);
-    });
-    return unsub;
-  }, []);
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'categories'), snap => {

@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { collection, getDocs, addDoc, setDoc, deleteDoc, doc, writeBatch } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { useAuth } from '../../contexts/AuthContext';
+import { useEntities } from '../../contexts/EntitiesContext';
 import { Entity, Transaction, EMILoan } from '../../types';
-import { EMI_LOANS, ACCOUNT_TO_ENTITY, getUpcomingEMIs } from '../../lib/emiData';
+import { EMI_LOANS, getUpcomingEMIs } from '../../lib/emiData';
 import { formatCurrency } from '../../lib/utils';
 import { format, startOfDay } from 'date-fns';
 
@@ -60,7 +61,7 @@ function computeCurrentBalance(entity: Entity, allTxns: Transaction[]): number {
 }
 
 export default function EMITracker() {
-  const [entities, setEntities] = useState<Entity[]>([]);
+  const { entities } = useEntities();
   const [allTxns, setAllTxns] = useState<Transaction[]>([]);
   const [loans, setLoans] = useState<EMILoan[]>([]);
   const [loading, setLoading] = useState(true);
@@ -78,13 +79,19 @@ export default function EMITracker() {
 
   const today = new Date();
 
+  // Dynamic account → entity name map (handles both formats)
+  const accountToEntityMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const e of entities) {
+      map[e.name] = e.name;                       // "Entity | BANK" stored via UI modal
+      map[e.name.replace(' | ', ' ')] = e.name;  // "Entity BANK" from seed data
+    }
+    return map;
+  }, [entities]);
+
   useEffect(() => {
     let count = 0;
-    const checkDone = () => { if (++count === 3) setLoading(false); };
-
-    getDocs(collection(db, 'entities')).then(snap => {
-      setEntities(snap.docs.map(d => ({ id: d.id, ...d.data() } as Entity)));
-    }).catch(() => {}).finally(checkDone);
+    const checkDone = () => { if (++count === 2) setLoading(false); };
 
     getDocs(collection(db, 'transactions')).then(snap => {
       setAllTxns(snap.docs.map(d => ({ id: d.id, ...d.data() } as Transaction)));
@@ -131,7 +138,7 @@ export default function EMITracker() {
       grouped[loan.debitedAccount] = (grouped[loan.debitedAccount] || 0) + loan.emiAmount;
     }
     for (const [account, dueAmount] of Object.entries(grouped)) {
-      const entityName = ACCOUNT_TO_ENTITY[account] ?? account;
+      const entityName = accountToEntityMap[account] ?? account;
       const balance = balanceMap[entityName] ?? 0;
       if (balance < dueAmount) {
         warnings.push({ account, dueDate: slot.date, daysFromNow: slot.daysFromNow, dueAmount, balance, shortfall: dueAmount - balance });
@@ -334,7 +341,7 @@ export default function EMITracker() {
                   <div className="text-right">
                     <p className="font-bold text-gray-900 dark:text-gray-100">{formatCurrency(slot.totalAmount)}</p>
                     {Object.entries(accountAmounts).map(([acc, amt]) => {
-                      const entityName = ACCOUNT_TO_ENTITY[acc] ?? acc;
+                      const entityName = accountToEntityMap[acc] ?? acc;
                       const bal = balanceMap[entityName] ?? 0;
                       const isLow = bal < amt;
                       return (

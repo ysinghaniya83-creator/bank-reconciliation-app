@@ -5,6 +5,7 @@ import App from './App.tsx';
 import { AuthProvider } from './contexts/AuthContext.tsx';
 import { PinProvider } from './contexts/PinContext.tsx';
 import { ThemeProvider } from './contexts/ThemeContext.tsx';
+import { EntitiesProvider } from './contexts/EntitiesContext.tsx';
 import './index.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
@@ -12,9 +13,11 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <BrowserRouter>
       <ThemeProvider>
         <AuthProvider>
-          <PinProvider>
-            <App />
-          </PinProvider>
+          <EntitiesProvider>
+            <PinProvider>
+              <App />
+            </PinProvider>
+          </EntitiesProvider>
         </AuthProvider>
       </ThemeProvider>
     </BrowserRouter>

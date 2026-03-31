@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { Transaction } from '../../types';
-import { formatCurrency, formatDate, CATEGORIES, ENTITIES } from '../../lib/utils';
+import { formatCurrency, formatDate, CATEGORIES } from '../../lib/utils';
+import { useEntities } from '../../contexts/EntitiesContext';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, parseISO, startOfDay, endOfDay } from 'date-fns';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
@@ -11,6 +12,7 @@ import autoTable from 'jspdf-autotable';
 type QuickFilter = 'week' | 'month' | 'year' | 'custom';
 
 export default function ReportsDashboard() {
+  const { entities } = useEntities();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [quickFilter, setQuickFilter] = useState<QuickFilter>('month');
@@ -141,7 +143,7 @@ export default function ReportsDashboard() {
         <div className="flex flex-wrap gap-3">
           <select value={entityFilter} onChange={e => setEntityFilter(e.target.value)} className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
             <option value="">All Accounts</option>
-            {ENTITIES.map(e => <option key={e.name} value={e.name}>{e.name}</option>)}
+            {entities.map(e => <option key={e.name} value={e.name}>{e.name}</option>)}
           </select>
           <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
             <option value="">All Categories</option>
