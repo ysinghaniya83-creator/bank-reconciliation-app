@@ -1,11 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Navbar from './Navbar';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePin } from '../../contexts/PinContext';
 import { useInactivity } from '../../hooks/useInactivity';
-import { useActivityLog } from '../../hooks/useActivityLog';
 import PinLock from '../pin/PinLock';
 
 const pageTitles: Record<string, string> = {
@@ -23,21 +22,12 @@ export default function Layout() {
   const { appUser } = useAuth();
   const { isLocked, lock } = usePin();
   const location = useLocation();
-  const { logActivity } = useActivityLog();
-
   const isPinEnabled = appUser?.pinSet === true;
 
   // Inactivity hook - auto-locks after 15 minutes
   useInactivity(lock, isPinEnabled && !isLocked);
 
   const title = pageTitles[location.pathname] || 'Bank Reconciliation';
-
-  // Log page visits
-  useEffect(() => {
-    if (appUser) {
-      logActivity('page_visit', location.pathname, title);
-    }
-  }, [location.pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">
