@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, getDocs, updateDoc, deleteDoc, doc, query, where } from 'firebase/firestore';
+import { collection, getDocs, updateDoc, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { AppUser, UserRole } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
@@ -15,7 +15,7 @@ const roleColors: Record<UserRole, string> = {
 };
 
 export default function UserManagement() {
-  const { appUser, orgId } = useAuth();
+  const { appUser } = useAuth();
   const [users, setUsers] = useState<AppUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -35,8 +35,7 @@ export default function UserManagement() {
     setLoading(true);
     setError('');
     try {
-      const q = query(collection(db, 'users'), where('orgId', '==', orgId));
-      const snap = await getDocs(q);
+      const snap = await getDocs(collection(db, 'users'));
       const userList: AppUser[] = snap.docs.map(d => d.data() as AppUser);
       // Sort by createdAt
       userList.sort((a, b) => {
@@ -173,23 +172,6 @@ export default function UserManagement() {
         <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">User Management</h3>
         <p className="text-sm text-gray-500 dark:text-gray-400">{activeUsers.length} active user{activeUsers.length !== 1 ? 's' : ''}{pendingUsers.length > 0 ? `, ${pendingUsers.length} pending` : ''}</p>
       </div>
-
-      {/* Invite Code */}
-      {orgId && (
-        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-xl p-4">
-          <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wider mb-1">Organization Invite Code</p>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Share this code with teammates so they can join your organization.</p>
-          <div className="flex items-center gap-2">
-            <code className="flex-1 bg-white dark:bg-gray-800 border border-blue-200 dark:border-blue-700 rounded-lg px-3 py-2 text-sm font-mono text-gray-800 dark:text-gray-200 break-all">{orgId}</code>
-            <button
-              onClick={() => { navigator.clipboard.writeText(orgId); }}
-              className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium whitespace-nowrap"
-            >
-              Copy
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Pending Approvals */}
       {pendingUsers.length > 0 && (
@@ -328,10 +310,11 @@ export default function UserManagement() {
                       key={role}
                       onClick={() => handleRoleChange(user, role)}
                       disabled={savingId === user.uid || user.role === role || (user.uid === appUser?.uid && role !== 'admin')}
-                      className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${user.role === role
+                      className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                        user.role === role
                           ? 'bg-blue-600 text-white'
                           : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                        }`}
+                      }`}
                     >
                       {role}
                     </button>
@@ -439,10 +422,11 @@ export default function UserManagement() {
                           key={role}
                           onClick={() => handleRoleChange(user, role)}
                           disabled={savingId === user.uid || user.role === role || (user.uid === appUser?.uid && role !== 'admin')}
-                          className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${user.role === role
+                          className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                            user.role === role
                               ? 'bg-blue-600 text-white'
                               : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                            }`}
+                          }`}
                         >
                           {role}
                         </button>

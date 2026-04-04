@@ -2,20 +2,12 @@ import { Timestamp } from 'firebase/firestore';
 
 export type UserRole = 'admin' | 'editor' | 'viewer' | 'pending';
 
-export interface Organization {
-  id: string;
-  name: string;
-  createdBy: string;
-  createdAt: Timestamp;
-}
-
 export interface AppUser {
   uid: string;
   email: string;
   displayName: string;
   photoURL: string;
   role: UserRole;
-  orgId: string | null;
   pinHash: string | null;
   pinSet: boolean;
   createdAt: Timestamp;
@@ -24,7 +16,6 @@ export interface AppUser {
 
 export interface Transaction {
   id: string;
-  orgId: string;
   date: Timestamp;
   entityName: string;
   description: string;
@@ -39,7 +30,6 @@ export interface Transaction {
 
 export interface Entity {
   id: string;
-  orgId: string;
   name: string;
   bank: string;
   openingBalance: number;
@@ -49,14 +39,12 @@ export interface Entity {
 
 export interface Category {
   id: string;
-  orgId: string;
   name: string;
   order: number;
 }
 
 export interface UserLog {
   id: string;
-  orgId: string;
   userId: string;
   userEmail: string;
   action: string;

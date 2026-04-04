@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
-import { collection, onSnapshot, query, orderBy, where } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { Entity, Transaction, EntityBalance } from '../../types';
 import { formatCurrency, getStatusLabel, OPENING_DATE } from '../../lib/utils';
 import { format, startOfDay, endOfDay } from 'date-fns';
-import { useAuth } from '../../contexts/AuthContext';
 
 function computeBalances(entityList: Entity[], allTxns: Transaction[], today: Date): EntityBalance[] {
   const todayStart = startOfDay(today);
@@ -45,7 +44,6 @@ function computeBalances(entityList: Entity[], allTxns: Transaction[], today: Da
 }
 
 export default function ExecutiveDashboard() {
-  const { orgId } = useAuth();
   const [entities, setEntities] = useState<Entity[]>([]);
   const [allTxns, setAllTxns] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -62,7 +60,7 @@ export default function ExecutiveDashboard() {
     };
 
     const unsubEntities = onSnapshot(
-      query(collection(db, 'entities'), where('orgId', '==', orgId), orderBy('order', 'asc')),
+      query(collection(db, 'entities'), orderBy('order', 'asc')),
       snap => {
         const list = snap.docs.map(d => ({ id: d.id, ...d.data() }) as Entity);
         setEntities(list);
@@ -77,7 +75,7 @@ export default function ExecutiveDashboard() {
     );
 
     const unsubTxns = onSnapshot(
-      query(collection(db, 'transactions'), where('orgId', '==', orgId)),
+      collection(db, 'transactions'),
       snap => {
         const list = snap.docs.map(d => ({ id: d.id, ...d.data() }) as Transaction);
         setAllTxns(list);

@@ -106,7 +106,7 @@ const adminNavItems: NavItem[] = [
 ];
 
 export default function Sidebar({ onClose }: SidebarProps) {
-  const { appUser, orgName } = useAuth();
+  const { appUser } = useAuth();
   const { isDark, toggleTheme } = useTheme();
 
   const filteredMain = mainNavItems.filter(
@@ -130,7 +130,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
           </div>
           <div>
             <h1 className="text-sm font-bold text-white leading-tight">Bank Reconciliation</h1>
-            <p className="text-xs text-gray-400">{orgName || 'Financial Management'}</p>
+            <p className="text-xs text-gray-400">Financial Management</p>
           </div>
         </div>
         {onClose && (
@@ -154,9 +154,10 @@ export default function Sidebar({ onClose }: SidebarProps) {
                 to={item.to}
                 onClick={onClose}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${isActive
-                    ? 'bg-blue-600 text-white'
-                    : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                  `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                    isActive
+                      ? 'bg-blue-600 text-white'
+                      : 'text-gray-300 hover:bg-gray-800 hover:text-white'
                   }`
                 }
               >
@@ -182,9 +183,10 @@ export default function Sidebar({ onClose }: SidebarProps) {
                     to={item.to}
                     onClick={onClose}
                     className={({ isActive }) =>
-                      `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${isActive
-                        ? 'bg-blue-600 text-white'
-                        : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                      `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                        isActive
+                          ? 'bg-blue-600 text-white'
+                          : 'text-gray-300 hover:bg-gray-800 hover:text-white'
                       }`
                     }
                   >
@@ -241,12 +243,13 @@ export default function Sidebar({ onClose }: SidebarProps) {
             )}
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-white truncate">{appUser.displayName}</p>
-              <span className={`inline-block text-xs px-1.5 py-0.5 rounded font-medium ${appUser.role === 'admin'
+              <span className={`inline-block text-xs px-1.5 py-0.5 rounded font-medium ${
+                appUser.role === 'admin'
                   ? 'bg-red-900 text-red-300'
                   : appUser.role === 'editor'
-                    ? 'bg-blue-900 text-blue-300'
-                    : 'bg-gray-700 text-gray-300'
-                }`}>
+                  ? 'bg-blue-900 text-blue-300'
+                  : 'bg-gray-700 text-gray-300'
+              }`}>
                 {appUser.role}
               </span>
             </div>

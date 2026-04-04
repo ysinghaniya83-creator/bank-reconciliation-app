@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { collection, getDocs, addDoc, setDoc, deleteDoc, doc, writeBatch, query, where } from 'firebase/firestore';
+import { collection, getDocs, addDoc, setDoc, deleteDoc, doc, writeBatch } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useEntities } from '../../contexts/EntitiesContext';
@@ -62,8 +62,6 @@ function computeCurrentBalance(entity: Entity, allTxns: Transaction[]): number {
 
 export default function EMITracker() {
   const { entities } = useEntities();
-  const { appUser, orgId } = useAuth();
-  const canEdit = appUser?.role === 'admin' || appUser?.role === 'editor';
   const [allTxns, setAllTxns] = useState<Transaction[]>([]);
   const [loans, setLoans] = useState<EMILoan[]>([]);
   const [loading, setLoading] = useState(true);
@@ -75,6 +73,9 @@ export default function EMITracker() {
   const [form, setForm] = useState<LoanFormData>(EMPTY_FORM);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  const { appUser } = useAuth();
+  const canEdit = appUser?.role === 'admin' || appUser?.role === 'editor';
 
   const today = new Date();
 
@@ -92,28 +93,21 @@ export default function EMITracker() {
     let count = 0;
     const checkDone = () => { if (++count === 2) setLoading(false); };
 
-    const txnQ = orgId ? query(collection(db, 'transactions'), where('orgId', '==', orgId)) : null;
-    if (txnQ) {
-      getDocs(txnQ).then(snap => {
-        setAllTxns(snap.docs.map(d => ({ id: d.id, ...d.data() } as Transaction)));
-      }).catch(() => { }).finally(checkDone);
-    } else {
-      checkDone();
-    }
+    getDocs(collection(db, 'transactions')).then(snap => {
+      setAllTxns(snap.docs.map(d => ({ id: d.id, ...d.data() } as Transaction)));
+    }).catch(() => {}).finally(checkDone);
 
     (async () => {
       try {
-        const emiQ = orgId ? query(collection(db, 'emiLoans'), where('orgId', '==', orgId)) : collection(db, 'emiLoans');
-        const snap = await getDocs(emiQ);
+        const snap = await getDocs(collection(db, 'emiLoans'));
         if (snap.empty) {
-          // Seed default loans for this org
           const batch = writeBatch(db);
           for (const loan of EMI_LOANS) {
             const ref = doc(collection(db, 'emiLoans'));
-            batch.set(ref, { ...loan, orgId });
+            batch.set(ref, loan);
           }
           await batch.commit();
-          const newSnap = await getDocs(emiQ);
+          const newSnap = await getDocs(collection(db, 'emiLoans'));
           setLoans(newSnap.docs.map(d => ({ id: d.id, ...d.data() } as EMILoan)));
         } else {
           setLoans(snap.docs.map(d => ({ id: d.id, ...d.data() } as EMILoan)));
@@ -212,7 +206,7 @@ export default function EMITracker() {
         await setDoc(doc(db, 'emiLoans', editingLoan.id), data);
         setLoans(prev => prev.map(l => l.id === editingLoan.id ? { id: editingLoan.id, ...data } : l));
       } else {
-        const ref = await addDoc(collection(db, 'emiLoans'), { ...data, orgId });
+        const ref = await addDoc(collection(db, 'emiLoans'), data);
         setLoans(prev => [...prev, { id: ref.id, ...data }]);
       }
       setModalOpen(false);

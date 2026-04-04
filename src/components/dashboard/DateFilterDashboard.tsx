@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
-import { collection, onSnapshot, query, orderBy, where } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { Entity, Transaction, EntityBalance } from '../../types';
 import { formatCurrency, getStatusLabel, OPENING_DATE, dateToString } from '../../lib/utils';
 import { format, startOfDay, endOfDay, parseISO } from 'date-fns';
-import { useAuth } from '../../contexts/AuthContext';
 
 function computeBalancesForDate(entityList: Entity[], allTxns: Transaction[], dateStr: string): EntityBalance[] {
   const targetDate = parseISO(dateStr);
@@ -46,7 +45,6 @@ function computeBalancesForDate(entityList: Entity[], allTxns: Transaction[], da
 }
 
 export default function DateFilterDashboard() {
-  const { orgId } = useAuth();
   const [selectedDate, setSelectedDate] = useState(dateToString(new Date()));
   const [entities, setEntities] = useState<Entity[]>([]);
   const [allTxns, setAllTxns] = useState<Transaction[]>([]);
@@ -62,7 +60,7 @@ export default function DateFilterDashboard() {
     };
 
     const unsubEntities = onSnapshot(
-      query(collection(db, 'entities'), where('orgId', '==', orgId), orderBy('order', 'asc')),
+      query(collection(db, 'entities'), orderBy('order', 'asc')),
       snap => {
         const list = snap.docs.map(d => ({ id: d.id, ...d.data() }) as Entity);
         setEntities(list);
@@ -77,7 +75,7 @@ export default function DateFilterDashboard() {
     );
 
     const unsubTxns = onSnapshot(
-      query(collection(db, 'transactions'), where('orgId', '==', orgId)),
+      collection(db, 'transactions'),
       snap => {
         const list = snap.docs.map(d => ({ id: d.id, ...d.data() }) as Transaction);
         setAllTxns(list);

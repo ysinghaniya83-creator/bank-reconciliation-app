@@ -18,8 +18,6 @@ import { AppUser, UserRole } from '../types';
 interface AuthContextType {
   currentUser: User | null;
   appUser: AppUser | null;
-  orgId: string | null;
-  orgName: string | null;
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
@@ -43,7 +41,6 @@ function buildFallbackUser(user: User): AppUser {
     displayName: user.displayName || '',
     photoURL: user.photoURL || '',
     role,
-    orgId: null,
     pinHash: null,
     pinSet: false,
     createdAt: Timestamp.now(),
@@ -56,10 +53,10 @@ async function syncUserWithFirestore(user: User): Promise<AppUser> {
     const userRef = doc(db, 'users', user.uid);
     const userSnap = await getDoc(userRef);
     if (userSnap.exists()) {
-      updateDoc(userRef, { lastLogin: Timestamp.now() }).catch(() => { });
+      updateDoc(userRef, { lastLogin: Timestamp.now() }).catch(() => {});
       return { ...userSnap.data(), uid: user.uid } as AppUser;
     }
-    // New user — create their profile (no org yet)
+    // New user — create their profile
     const newUser = buildFallbackUser(user);
     await setDoc(userRef, newUser);
     return newUser;
@@ -72,7 +69,6 @@ async function syncUserWithFirestore(user: User): Promise<AppUser> {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [appUser, setAppUser] = useState<AppUser | null>(null);
-  const [orgName, setOrgName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const refreshUser = async () => {
@@ -80,15 +76,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const synced = await syncUserWithFirestore(currentUser);
     setAppUser(synced);
   };
-
-  // Fetch org name whenever orgId changes
-  useEffect(() => {
-    const orgId = appUser?.orgId ?? null;
-    if (!orgId) { setOrgName(null); return; }
-    getDoc(doc(db, 'organizations', orgId))
-      .then(snap => { if (snap.exists()) setOrgName(snap.data().name ?? null); })
-      .catch(() => { });
-  }, [appUser?.orgId]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -99,7 +86,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         setCurrentUser(null);
         setAppUser(null);
-        setOrgName(null);
       }
       setLoading(false);
     });
@@ -107,6 +93,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signInWithGoogle = async () => {
+    // signInWithPopup triggers onAuthStateChanged on success — no extra handling needed
     await signInWithPopup(auth, googleProvider);
   };
 
@@ -114,13 +101,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await firebaseSignOut(auth);
     setCurrentUser(null);
     setAppUser(null);
-    setOrgName(null);
   };
 
-  const orgId = appUser?.orgId ?? null;
-
   return (
-    <AuthContext.Provider value={{ currentUser, appUser, orgId, orgName, loading, signInWithGoogle, signOut, refreshUser }}>
+    <AuthContext.Provider value={{ currentUser, appUser, loading, signInWithGoogle, signOut, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );
