@@ -14,10 +14,12 @@ import { db } from '../../lib/firebase';
 import { UserLog } from '../../types';
 import { formatDateTime } from '../../lib/utils';
 import { subMonths } from 'date-fns';
+import { useAuth } from '../../contexts/AuthContext';
 
 const PAGE_SIZE = 50;
 
 export default function UserLogs() {
+  const { orgId } = useAuth();
   const [logs, setLogs] = useState<UserLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -39,6 +41,7 @@ export default function UserLogs() {
     try {
       let q = query(
         collection(db, 'userLogs'),
+        where('orgId', '==', orgId),
         where('timestamp', '>=', sixMonthsAgo),
         orderBy('timestamp', 'desc'),
         limit(PAGE_SIZE)
@@ -47,6 +50,7 @@ export default function UserLogs() {
       if (isLoadMore && lastDocParam) {
         q = query(
           collection(db, 'userLogs'),
+          where('orgId', '==', orgId),
           where('timestamp', '>=', sixMonthsAgo),
           orderBy('timestamp', 'desc'),
           startAfter(lastDocParam),

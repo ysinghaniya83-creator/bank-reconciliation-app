@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
+import { collection, onSnapshot, orderBy, query, where } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { Transaction } from '../../types';
 import { formatCurrency, formatDate, CATEGORIES } from '../../lib/utils';
@@ -8,11 +8,13 @@ import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, 
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { useAuth } from '../../contexts/AuthContext';
 
 type QuickFilter = 'week' | 'month' | 'year' | 'custom';
 
 export default function ReportsDashboard() {
   const { entities } = useEntities();
+  const { orgId } = useAuth();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [quickFilter, setQuickFilter] = useState<QuickFilter>('month');
@@ -22,7 +24,8 @@ export default function ReportsDashboard() {
   const [categoryFilter, setCategoryFilter] = useState('');
 
   useEffect(() => {
-    const q = query(collection(db, 'transactions'), orderBy('date', 'desc'));
+    if (!orgId) return;
+    const q = query(collection(db, 'transactions'), where('orgId', '==', orgId), orderBy('date', 'desc'));
     const unsub = onSnapshot(q, snap => {
       setTransactions(snap.docs.map(d => ({ id: d.id, ...d.data() })) as Transaction[]);
       setLoading(false);
@@ -100,11 +103,10 @@ export default function ReportsDashboard() {
     doc.save(`bank-report-${format(today, 'yyyy-MM-dd')}.pdf`);
   };
 
-  const quickBtnCls = (f: QuickFilter) => `px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-    quickFilter === f
+  const quickBtnCls = (f: QuickFilter) => `px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${quickFilter === f
       ? 'bg-blue-600 text-white'
       : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-  }`;
+    }`;
 
   return (
     <div className="space-y-4">

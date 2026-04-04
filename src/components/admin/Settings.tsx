@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc, getDocs, query, where, Timestamp } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { useEntities } from '../../contexts/EntitiesContext';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface Category {
   id: string;
@@ -10,6 +11,7 @@ interface Category {
 }
 
 export default function Settings() {
+  const { orgId } = useAuth();
   const { entities, loading: loadingEntities } = useEntities();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
@@ -31,14 +33,16 @@ export default function Settings() {
   const [deleteCategoryConfirm, setDeleteCategoryConfirm] = useState<string | null>(null);
 
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, 'categories'), snap => {
+    if (!orgId) return;
+    const q = query(collection(db, 'categories'), where('orgId', '==', orgId));
+    const unsub = onSnapshot(q, snap => {
       const list = snap.docs.map(d => ({ id: d.id, ...d.data() }) as Category);
       list.sort((a, b) => (a.order || 0) - (b.order || 0));
       setCategories(list);
       setLoadingCategories(false);
     });
     return unsub;
-  }, []);
+  }, [orgId]);
 
   const handleAddEntity = async () => {
     if (!entityForm.name.trim() || !entityForm.bank.trim()) {
@@ -48,6 +52,7 @@ export default function Settings() {
     setSavingEntity(true);
     try {
       await addDoc(collection(db, 'entities'), {
+        orgId,
         name: entityForm.name.trim(),
         bank: entityForm.bank.trim(),
         openingBalance: entityForm.openingBalance ? parseFloat(entityForm.openingBalance) : 0,
@@ -105,6 +110,7 @@ export default function Settings() {
     setSavingCategory(true);
     try {
       await addDoc(collection(db, 'categories'), {
+        orgId,
         name: categoryName.trim(),
         order: categories.length + 1,
       });
@@ -119,8 +125,8 @@ export default function Settings() {
   };
 
   const handleDeleteCategory = async (id: string, name: string) => {
-    // Check if in use
-    const snap = await getDocs(query(collection(db, 'transactions'), where('category', '==', name)));
+    // Check if in use within this org only
+    const snap = await getDocs(query(collection(db, 'transactions'), where('orgId', '==', orgId), where('category', '==', name)));
     if (!snap.empty) {
       setError(`Cannot delete "${name}" — it's used by ${snap.size} transaction(s).`);
       setDeleteCategoryConfirm(null);
@@ -308,7 +314,7 @@ export default function Settings() {
                 value={categoryName}
                 onChange={e => setCategoryName(e.target.value)}
                 className={inputCls}
-                onKeyDown={e => { if (e.key === 'Enter') handleAddCategory(); if (e.key === 'Escape') { setShowAddCategory(false); setCategoryName(''); }}}
+                onKeyDown={e => { if (e.key === 'Enter') handleAddCategory(); if (e.key === 'Escape') { setShowAddCategory(false); setCategoryName(''); } }}
               />
               <button onClick={handleAddCategory} disabled={savingCategory} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium disabled:opacity-50 whitespace-nowrap">
                 {savingCategory ? '...' : 'Add'}

@@ -8,6 +8,7 @@ import {
   updateDoc,
   orderBy,
   query,
+  where,
   Timestamp,
 } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
@@ -60,6 +61,7 @@ export default function DailyLedger() {
 
   const canEdit = appUser?.role === 'admin' || appUser?.role === 'editor';
   const { entities } = useEntities();
+  const { orgId } = useAuth();
 
   // All unique descriptions for autocomplete
   const allDescriptions = Array.from(new Set(transactions.map(t => t.description).filter(Boolean)));
@@ -67,7 +69,8 @@ export default function DailyLedger() {
   const categoryNames = CATEGORIES;
 
   useEffect(() => {
-    const q = query(collection(db, 'transactions'), orderBy('date', 'desc'));
+    if (!orgId) return;
+    const q = query(collection(db, 'transactions'), where('orgId', '==', orgId), orderBy('date', 'desc'));
     const unsub = onSnapshot(q, snap => {
       const txns: Transaction[] = snap.docs.map(d => ({
         id: d.id,
@@ -192,6 +195,7 @@ export default function DailyLedger() {
         });
       } else {
         const docRef = await addDoc(collection(db, 'transactions'), {
+          orgId,
           date: dateTimestamp,
           entityName: formData.entityName,
           description: formData.description.trim(),
@@ -256,6 +260,7 @@ export default function DailyLedger() {
         const debit: number | null = !isNaN(debitVal) && debitVal > 0 ? debitVal : null;
 
         const txnRef = await addDoc(collection(db, 'transactions'), {
+          orgId,
           date: Timestamp.fromDate(dateObj),
           entityName,
           description: descIdx !== -1 ? cols[descIdx] : '',
@@ -494,7 +499,7 @@ export default function DailyLedger() {
       {/* Table */}
       {loading ? (
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden animate-pulse">
-          {[1,2,3,4,5,6,7,8].map(i => (
+          {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
             <div key={i} className="h-12 border-b border-gray-100 dark:border-gray-700 px-4 flex items-center gap-4">
               <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-20"></div>
               <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-32"></div>
@@ -543,9 +548,8 @@ export default function DailyLedger() {
                     return (
                       <tr
                         key={txn.id}
-                        className={`border-b border-gray-100 dark:border-gray-700 ${
-                          index % 2 === 0 ? 'bg-white dark:bg-gray-800' : 'bg-gray-50 dark:bg-gray-800/50'
-                        } hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors`}
+                        className={`border-b border-gray-100 dark:border-gray-700 ${index % 2 === 0 ? 'bg-white dark:bg-gray-800' : 'bg-gray-50 dark:bg-gray-800/50'
+                          } hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors`}
                       >
                         <td className="px-4 py-3 text-gray-600 dark:text-gray-300 whitespace-nowrap">
                           {formatDate(txn.date)}

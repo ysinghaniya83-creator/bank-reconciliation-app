@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
 import LoginPage from './components/auth/LoginPage';
+import OrgOnboarding from './components/auth/OrgOnboarding';
 import PendingApproval from './components/auth/PendingApproval';
 import PinSetup from './components/pin/PinSetup';
 import Layout from './components/layout/Layout';
@@ -51,6 +52,11 @@ function AppRoutes() {
         </div>
       </div>
     );
+  }
+
+  // Show org onboarding if user has no organization yet
+  if (appUser && !appUser.orgId) {
+    return <OrgOnboarding />;
   }
 
   // Show pending approval screen if user's access is not yet approved

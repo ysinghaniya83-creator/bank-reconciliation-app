@@ -4,14 +4,15 @@ import { db } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 
 export function useActivityLog() {
-  const { appUser } = useAuth();
+  const { appUser, orgId } = useAuth();
 
   const logActivity = useCallback(
     async (action: string, page: string, details?: string) => {
-      if (!appUser) return;
+      if (!appUser || !orgId) return;
 
       try {
         await addDoc(collection(db, 'userLogs'), {
+          orgId,
           userId: appUser.uid,
           userEmail: appUser.email,
           action,
@@ -20,11 +21,10 @@ export function useActivityLog() {
           details: details || null,
         });
       } catch (error) {
-        // Silently fail - logging should not break the app
         console.warn('Failed to log activity:', error);
       }
     },
-    [appUser]
+    [appUser, orgId]
   );
 
   return { logActivity };

@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
-import { collection, getDocs, addDoc, updateDoc, doc, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, addDoc, updateDoc, doc, Timestamp, query, where } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../../lib/firebase';
 import { useEntities } from '../../contexts/EntitiesContext';
@@ -70,7 +70,7 @@ function matchEntity(accountHolder: string, entities: Entity[]): string {
 
 export default function StatementUpload() {
   const { entities } = useEntities();
-  const { appUser } = useAuth();
+  const { appUser, orgId } = useAuth();
   const navigate = useNavigate();
 
   const [step, setStep] = useState<Step>('upload');
@@ -140,7 +140,7 @@ export default function StatementUpload() {
       if (!geminiRes.ok) {
         const errText = await geminiRes.text();
         let detail = `Gemini API error (${geminiRes.status})`;
-        try { detail = JSON.parse(errText)?.error?.message || detail; } catch {}
+        try { detail = JSON.parse(errText)?.error?.message || detail; } catch { }
         throw new Error(detail);
       }
 
@@ -168,8 +168,8 @@ export default function StatementUpload() {
       const matched = matchEntity(data.accountHolder || '', entities);
       setGlobalEntity(matched);
 
-      // Fetch existing transactions for duplicate detection
-      const snap = await getDocs(collection(db, 'transactions'));
+      // Fetch existing transactions for duplicate detection (org-scoped)
+      const snap = await getDocs(query(collection(db, 'transactions'), where('orgId', '==', orgId)));
       const existing: Transaction[] = snap.docs.map(d => ({ id: d.id, ...d.data() }) as Transaction);
 
       // Build review rows with duplicate detection
@@ -238,6 +238,7 @@ export default function StatementUpload() {
         const date = new Date(year, month - 1, day, 12, 0, 0);
 
         const docRef = await addDoc(collection(db, 'transactions'), {
+          orgId,
           date: Timestamp.fromDate(date),
           entityName: row.entityName,
           description: row.description,
@@ -544,11 +545,10 @@ export default function StatementUpload() {
         onDragOver={e => { e.preventDefault(); setDragOver(true); }}
         onDragLeave={() => setDragOver(false)}
         onClick={() => fileInputRef.current?.click()}
-        className={`relative border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-colors ${
-          dragOver
+        className={`relative border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-colors ${dragOver
             ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
             : 'border-gray-300 dark:border-gray-600 hover:border-blue-400 hover:bg-gray-50 dark:hover:bg-gray-700/30'
-        }`}
+          }`}
       >
         <input
           ref={fileInputRef}

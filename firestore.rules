@@ -28,64 +28,73 @@ service cloud.firestore {
       );
     }
 
+    function userOrgId() {
+      return getUserData().orgId;
+    }
+
+    function sameOrg(docOrgId) {
+      return isAuthenticated() && docOrgId == userOrgId();
+    }
+
+    // Organizations collection
+    match /organizations/{orgId} {
+      // Any authenticated user can read an org (needed to validate invite codes)
+      allow read: if isAuthenticated();
+      // Only authenticated users can create orgs
+      allow create: if isAuthenticated();
+      // Only admins of the same org can update
+      allow update: if isAdmin() && sameOrg(resource.data.orgId);
+      allow delete: if false;
+    }
+
     // Users collection
     match /users/{userId} {
-      // Anyone authenticated can read their own document
       allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
-      // Users can create their own document on first sign-in
       allow create: if isAuthenticated() && request.auth.uid == userId;
-      // Users can update their own document (for PIN, lastLogin)
-      // Admins can update any user document (for role changes)
       allow update: if isAuthenticated() && (
         request.auth.uid == userId ||
         isAdmin()
       );
-      // Only admins can delete users
       allow delete: if isAdmin();
     }
 
-    // Transactions collection
+    // Transactions collection — org-isolated
     match /transactions/{transactionId} {
-      // All authenticated users can read
-      allow read: if isViewer();
-      // Editors and admins can create/update/delete
-      allow create: if isEditor();
-      allow update: if isEditor();
-      allow delete: if isEditor();
+      allow read: if isViewer() && sameOrg(resource.data.orgId);
+      allow create: if isEditor() && request.resource.data.orgId == userOrgId();
+      allow update: if isEditor() && sameOrg(resource.data.orgId);
+      allow delete: if isEditor() && sameOrg(resource.data.orgId);
     }
 
-    // Entities collection
+    // Entities collection — org-isolated
     match /entities/{entityId} {
-      // All authenticated users can read
-      allow read: if isViewer();
-      // Only admins can modify entities
-      allow write: if isAdmin();
+      allow read: if isViewer() && sameOrg(resource.data.orgId);
+      allow create: if isAdmin() && request.resource.data.orgId == userOrgId();
+      allow update: if isAdmin() && sameOrg(resource.data.orgId);
+      allow delete: if isAdmin() && sameOrg(resource.data.orgId);
     }
 
-    // Categories collection
+    // Categories collection — org-isolated
     match /categories/{categoryId} {
-      // All authenticated users can read
-      allow read: if isViewer();
-      // Only admins can modify categories
-      allow write: if isAdmin();
+      allow read: if isViewer() && sameOrg(resource.data.orgId);
+      allow create: if isAdmin() && request.resource.data.orgId == userOrgId();
+      allow update: if isAdmin() && sameOrg(resource.data.orgId);
+      allow delete: if isAdmin() && sameOrg(resource.data.orgId);
     }
 
-    // User Logs collection
+    // User Logs collection — org-isolated
     match /userLogs/{logId} {
-      // Only admins can read logs
-      allow read: if isAdmin();
-      // Any authenticated user can create logs (for activity tracking)
-      allow create: if isAuthenticated();
-      // Logs cannot be updated or deleted
+      allow read: if isAdmin() && sameOrg(resource.data.orgId);
+      allow create: if isAuthenticated() && request.resource.data.orgId == userOrgId();
       allow update, delete: if false;
     }
 
-    // EMI Loans collection
+    // EMI Loans collection — org-isolated
     match /emiLoans/{loanId} {
-      // All authenticated users can read
-      allow read: if isViewer();
-      // Editors and admins can create/update/delete
-      allow create, update, delete: if isEditor();
+      allow read: if isViewer() && sameOrg(resource.data.orgId);
+      allow create: if isEditor() && request.resource.data.orgId == userOrgId();
+      allow update: if isEditor() && sameOrg(resource.data.orgId);
+      allow delete: if isEditor() && sameOrg(resource.data.orgId);
     }
   }
 }

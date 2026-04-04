@@ -1,7 +1,7 @@
 const https = require('https');
 
 function readBody(req) {
-  return new Promise(function(resolve, reject) {
+  return new Promise(function (resolve, reject) {
     if (req.body !== undefined && req.body !== null) {
       if (typeof req.body === 'object' && !Buffer.isBuffer(req.body)) {
         return resolve(req.body);
@@ -10,8 +10,8 @@ function readBody(req) {
       try { return resolve(JSON.parse(raw)); } catch (e) { return resolve({}); }
     }
     var chunks = [];
-    req.on('data', function(c) { chunks.push(c); });
-    req.on('end', function() {
+    req.on('data', function (c) { chunks.push(c); });
+    req.on('end', function () {
       var raw = Buffer.concat(chunks).toString('utf8');
       try { resolve(JSON.parse(raw)); } catch (e) { resolve({}); }
     });
@@ -20,7 +20,7 @@ function readBody(req) {
 }
 
 function geminiPost(apiKey, payload) {
-  return new Promise(function(resolve, reject) {
+  return new Promise(function (resolve, reject) {
     var data = JSON.stringify(payload);
     var options = {
       hostname: 'generativelanguage.googleapis.com',
@@ -31,10 +31,10 @@ function geminiPost(apiKey, payload) {
         'Content-Length': Buffer.byteLength(data),
       },
     };
-    var req = https.request(options, function(response) {
+    var req = https.request(options, function (response) {
       var chunks = [];
-      response.on('data', function(c) { chunks.push(c); });
-      response.on('end', function() {
+      response.on('data', function (c) { chunks.push(c); });
+      response.on('end', function () {
         resolve({ status: response.statusCode, body: Buffer.concat(chunks).toString('utf8') });
       });
     });
